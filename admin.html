@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Organizer · After Dark</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#14061f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Kaushan+Script&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .adm{max-width:900px;margin:0 auto;padding:24px 16px 60px;display:grid;gap:20px}
+  .adm h1{font-family:"Kaushan Script",cursive;color:var(--pink);font-weight:400;font-size:40px;text-shadow:var(--glow)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .stats div{border:1.5px solid var(--pink);border-radius:12px;padding:10px;background:rgba(255,46,138,.08)}
+  .stats b{display:block;font-size:30px;line-height:1}
+  .stats span{font-size:12px;letter-spacing:.25em;text-transform:uppercase;color:var(--muted)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row input[type=text],.row input[type=search]{flex:1;min-width:200px}
+  .list{display:grid;gap:8px}
+  .g{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;padding:10px;border:1px solid rgba(247,239,227,.15);border-radius:12px;background:var(--card)}
+  .g.pending{opacity:.55}
+  .g .face{width:52px;height:52px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:linear-gradient(135deg,var(--violet),var(--pink));font-weight:700}
+  .g .face img{width:100%;height:100%;object-fit:cover}
+  .g .who b{font-size:19px}
+  .g .who small{display:block;color:var(--muted);font-size:15px}
+  .g .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .tag{font-size:13px;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid var(--muted)}
+  .tag.paid{border-color:#5ff2b0;color:#5ff2b0}
+  .mini{background:transparent;color:var(--cream);border:1px solid var(--pink);border-radius:999px;padding:6px 12px;font:600 14px "Barlow Condensed";letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+  .mini.on{background:var(--pink)}
+  .filters .mini{padding:8px 14px}
+  @media (max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}.g{grid-template-columns:44px 1fr}.g .acts{grid-column:1/-1;justify-content:flex-start}.g .face{width:44px;height:44px}}
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true"></div>
+<main class="adm">
+  <h1>Organizer</h1>
+
+  <form id="login" class="card row">
+    <input type="password" id="pw" placeholder="Organizer password" autocomplete="current-password" required style="flex:1">
+    <button class="btn" type="submit">Enter</button>
+    <p class="error" id="loginErr" hidden></p>
+  </form>
+
+  <div id="panel" hidden>
+    <div class="stats" id="stats"></div>
+
+    <form id="addrForm" class="card" style="display:grid;gap:12px;margin:20px 0">
+      <label style="letter-spacing:.25em;text-transform:uppercase;font-size:13px;color:var(--pink-soft);display:grid;gap:6px">Party address
+        <input type="text" id="address" maxlength="200" placeholder="Street, number, city — only paid guests see this">
+      </label>
+      <label class="check"><input type="checkbox" id="released"> Show the address to everyone who paid</label>
+      <button class="btn" type="submit" id="saveAddr">Save address</button>
+    </form>
+
+    <div class="row filters" style="margin-bottom:12px">
+      <input type="search" id="q" placeholder="Search name or @">
+      <button class="mini on" data-f="paid">Paid</button>
+      <button class="mini" data-f="pending">Not paid</button>
+      <button class="mini" data-f="all">All</button>
+    </div>
+    <div class="list" id="list"></div>
+  </div>
+</main>
+<script src="/config.js"></script>
+<script src="/admin.js"></script>
+</body>
+</html>
