@@ -128,7 +128,7 @@
     }
     try {
       const d = await api("wall");
-      renderWall(d.guests); renderCounts(d.going, d.held);
+      renderWall(d.guests); renderCounts(d.going, d.held); renderCrews(d.crews);
     } catch { /* keep last state */ }
   }
 
@@ -153,16 +153,18 @@
     e.preventDefault(); showError("");
     const f = e.target;
     const name = f.name.value.trim(), instagram = cleanHandle(f.instagram.value), school = f.school.value;
-    const ticket = (f.querySelector("input[name=ticket]:checked") || {}).value;
+    const gender = (f.querySelector("input[name=gender]:checked") || {}).value;
+    const phone = f.phone.value.trim(), digits = phone.replace(/\D/g, "");
     if (name.length < 2) return showError("Add your name.");
     if (!/^[a-z0-9._]{1,30}$/.test(instagram)) return showError("That Instagram handle doesn't look right.");
+    if (digits.length < 10 || digits.length > 15) return showError("Add a valid phone number.");
     if (!school) return showError("Pick your school.");
-    if (!ticket) return showError("Choose Ladies or Guys.");
+    if (!gender) return showError("Select your gender.");
     if (!$("terms").checked) return showError("Please confirm you understand there are no refunds.");
     if (PREVIEW) return showError("Preview mode — payments turn on once the site is connected.");
     $("payBtn").disabled = true; $("payBtn").textContent = "Sending…";
     try {
-      const d = await api("apply", { name, instagram, school, ticket, showPhoto: $("showPhoto").checked, photo: photoData });
+      const d = await api("apply", { name, instagram, phone, school, gender, showPhoto: $("showPhoto").checked, photo: photoData });
       history.replaceState(null, "", "/?t=" + d.token);
       showApplied(d.token, d);
     } catch (err) {
@@ -197,6 +199,18 @@
     box.scrollIntoView({ behavior: "smooth", block: "center" });
   }
   $("instagram").addEventListener("blur", (e) => { e.target.value = cleanHandle(e.target.value); });
+  // gender decides the price
+  document.querySelectorAll("input[name=gender]").forEach((r) => r.addEventListener("change", () => {
+    const ladies = r.value === "female";
+    const b = document.createElement("b"); b.textContent = `$${ladies ? P.prices.ladies : P.prices.guys}`;
+    $("yourPrice").replaceChildren(`Your ticket: ${ladies ? "Ladies" : "Guys"} · `, b);
+  }));
+
+  function renderCrews(list) {
+    const items = (list || []).filter(Boolean);
+    $("crews").hidden = !items.length;
+    $("crewList").replaceChildren(...items.map((c) => { const li = document.createElement("li"); li.textContent = c; return li; }));
+  }
 
   // ---------- my ticket (after Stripe sends people back with ?t=token) ----------
   async function loadTicket(token) {

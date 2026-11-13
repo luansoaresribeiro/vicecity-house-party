@@ -38,12 +38,13 @@
     ].map(([b, s]) => { const d = document.createElement("div"); d.innerHTML = "<b></b><span></span>"; d.children[0].textContent = b; d.children[1].textContent = s; return d; }));
 
     if (document.activeElement !== $("address")) $("address").value = state.settings.address;
+    if (document.activeElement !== $("crewsInput")) $("crewsInput").value = (state.settings.crews || []).join("\n");
     $("released").checked = state.settings.address_released;
 
     const q = $("q").value.trim().toLowerCase().replace(/^@/, "");
     const rows = state.guests.filter((g) =>
       (filter === "all" || g.status === filter) &&
-      (!q || g.name.toLowerCase().includes(q) || g.instagram.includes(q)));
+      (!q || g.name.toLowerCase().includes(q) || g.instagram.includes(q) || (g.phone || "").includes(q.replace(/\D/g, "") || "~")));
     $("list").replaceChildren(...rows.map(row));
     if (!rows.length) { const p = document.createElement("p"); p.className = "fine"; p.textContent = "Nobody here yet."; $("list").append(p); }
   }
@@ -58,7 +59,8 @@
     const who = document.createElement("div"); who.className = "who";
     const b = document.createElement("b"); b.textContent = g.name;
     const sm = document.createElement("small");
-    sm.textContent = `@${g.instagram} · ${g.school} · ${g.ticket === "ladies" ? "Ladies $20" : "Guys $40"}${g.status === "paid" && !g.show_photo ? " · mystery on wall" : ""}`;
+    const sex = g.gender === "female" ? "Female" : g.gender === "male" ? "Male" : "";
+    sm.textContent = `@${g.instagram} · ${g.school}${sex ? " · " + sex : ""} · ${g.ticket === "ladies" ? "Ladies $20" : "Guys $40"}${g.phone ? " · " + g.phone : ""}${g.status === "paid" && !g.show_photo ? " · mystery on wall" : ""}`;
     const tag = document.createElement("span"); tag.className = "tag " + g.status; tag.textContent = g.status === "paid" ? "paid" : "applied · not paid";
     who.append(b, " ", tag, sm);
 
@@ -70,6 +72,10 @@
     const ig = document.createElement("a"); ig.className = "mini"; ig.textContent = "Instagram"; ig.target = "_blank"; ig.rel = "noopener";
     ig.href = "https://instagram.com/" + encodeURIComponent(g.instagram); ig.style.textDecoration = "none";
     acts.append(ig);
+    if (g.phone) {
+      const tx = document.createElement("a"); tx.className = "mini"; tx.textContent = "Text"; tx.style.textDecoration = "none";
+      tx.href = "sms:" + g.phone; acts.append(tx);
+    }
     el.append(face, who, acts);
     return el;
   }
@@ -83,11 +89,17 @@
     await load({ op: "settings", address: $("address").value.trim(), released: $("released").checked });
     $("saveAddr").textContent = "Saved ✓"; setTimeout(() => ($("saveAddr").textContent = "Save address"), 1500);
   });
+  $("crewForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("saveCrews").textContent = "Saving…";
+    await load({ op: "crews", crews: $("crewsInput").value.split("\n").map((x) => x.trim()).filter(Boolean) });
+    $("saveCrews").textContent = "Saved ✓"; setTimeout(() => ($("saveCrews").textContent = "Save crews"), 1500);
+  });
   $("q").addEventListener("input", () => state && render());
   document.querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", () => {
     filter = b.dataset.f; document.querySelectorAll("[data-f]").forEach((x) => x.classList.toggle("on", x === b)); render();
   }));
 
   if (pw) load();
-  setInterval(() => { if (pw && !$("panel").hidden && document.activeElement !== $("address")) load(); }, 30000);
+  setInterval(() => { if (pw && !$("panel").hidden && document.activeElement !== $("address") && document.activeElement !== $("crewsInput")) load(); }, 30000);
 })();

@@ -61,6 +61,10 @@
     <div class="wall" id="wall" role="list">
       <p class="wall-empty" id="wallEmpty">Be the first one on the wall. 🌴</p>
     </div>
+    <div class="crews" id="crews" hidden>
+      <h3 class="eyebrow">Crews pulling up</h3>
+      <ul class="crew-list" id="crewList"></ul>
+    </div>
   </section>
 
   <section class="tickets" id="tickets" aria-labelledby="ticketsTitle">
@@ -86,6 +90,10 @@
         <div class="at"><span>@</span><input name="instagram" id="instagram" autocapitalize="off" autocomplete="off" spellcheck="false" maxlength="30" required placeholder="yourhandle"></div>
       </label>
 
+      <label>Phone
+        <input name="phone" id="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" required placeholder="(305) 555-0123">
+      </label>
+
       <label>School
         <select name="school" id="school" required>
           <option value="" disabled selected>Choose one</option>
@@ -96,9 +104,10 @@
       </label>
 
       <fieldset class="ticket-pick">
-        <legend>Ticket</legend>
-        <label class="pill"><input type="radio" name="ticket" value="ladies" required><span>Ladies · $20</span></label>
-        <label class="pill"><input type="radio" name="ticket" value="guys"><span>Guys · $40</span></label>
+        <legend>Gender</legend>
+        <label class="pill"><input type="radio" name="gender" value="female" required><span>Female</span></label>
+        <label class="pill"><input type="radio" name="gender" value="male"><span>Male</span></label>
+        <p class="your-price" id="yourPrice">Pick one to see your ticket price.</p>
       </fieldset>
 
       <div class="photo-row">
@@ -114,7 +123,8 @@
 
       <p class="error" id="formError" role="alert" hidden></p>
       <button class="btn wide" type="submit" id="payBtn">Apply</button>
-      <p class="fine center">Next step: pay to lock your spot. <strong>Your spot is only guaranteed once you pay.</strong></p>
+      <p class="fine center">Next step: pay to lock your spot. <strong>Your spot is only guaranteed once you pay.</strong><br>
+        Ticket price is based on gender and tickets are checked at the door.</p>
     </form>
 
     <div class="card applied" id="applied" hidden aria-live="polite"></div>

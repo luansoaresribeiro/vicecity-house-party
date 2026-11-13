@@ -9,6 +9,19 @@ const SALES_CLOSE = Date.parse("2026-11-18T23:59:59-05:00");
 const HOLD_MIN = 30; // opening checkout holds a spot for 30 min (Stripe's minimum session life)
 const PHONE = "786-656-6926";
 const SCHOOLS = ["FIU", "St. Thomas", "Other"];
+const TICKET_FOR: Record<string, string> = { female: "ladies", male: "guys" }; // gender sets the price
+
+// US numbers → +1XXXXXXXXXX; other countries must start with + (8–15 digits)
+function normalizePhone(raw: string): string | null {
+  const plus = raw.trim().startsWith("+");
+  const d = raw.replace(/\D/g, "");
+  if (!plus && d.length === 10) return "+1" + d;
+  if (!plus && d.length === 11 && d[0] === "1") return "+" + d;
+  if (plus && d.length >= 8 && d.length <= 15) return "+" + d;
+  return null;
+}
+const cleanCrews = (v: unknown) =>
+  (Array.isArray(v) ? v : []).map((x) => String(x).trim().slice(0, 40)).filter(Boolean).slice(0, 40);
 
 const env = (k: string) => Deno.env.get(k) ?? "";
 const db = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
@@ -61,7 +74,8 @@ async function wall() {
       photo: photoUrl(g.photo_path),
     };
   });
-  return json({ guests, ...(await counts()), capacity: CAPACITY });
+  const { data: st } = await db.from("settings").select("crews").eq("id", 1).single();
+  return json({ guests, crews: cleanCrews(st?.crews), ...(await counts()), capacity: CAPACITY });
 }
 
 const closedMsg = `Online sales are closed. Text or call ${PHONE} to request a ticket.`;
@@ -75,11 +89,14 @@ async function apply(req: Request) {
   const name = String(b.name ?? "").trim().replace(/\s+/g, " ");
   const instagram = String(b.instagram ?? "").trim().replace(/^@+/, "").toLowerCase();
   const school = String(b.school ?? "");
-  const ticket = String(b.ticket ?? "");
+  const gender = String(b.gender ?? "");
+  const ticket = TICKET_FOR[gender];
+  const phone = normalizePhone(String(b.phone ?? ""));
   if (name.length < 2 || name.length > 60) return fail("Add your name.");
+  if (!phone) return fail("Add a valid phone number.");
   if (!/^[a-z0-9._]{1,30}$/.test(instagram)) return fail("That Instagram handle doesn't look right.");
   if (!SCHOOLS.includes(school)) return fail("Pick your school.");
-  if (!(ticket in PRICES)) return fail("Choose Ladies or Guys.");
+  if (!ticket) return fail("Select your gender.");
 
   const dup = await db.from("guests").select("id", { count: "exact", head: true })
     .eq("instagram", instagram).eq("status", "paid");
@@ -100,7 +117,7 @@ async function apply(req: Request) {
   }
 
   const { data: g, error } = await db.from("guests").insert({
-    name, instagram, school, ticket, amount_cents: PRICES[ticket], photo_path, show_photo: b.showPhoto !== false,
+    name, instagram, school, gender, phone, ticket, amount_cents: PRICES[ticket], photo_path, show_photo: b.showPhoto !== false,
   }).select("id,token").single();
   if (error || !g) return fail("Couldn't save your application. Try again.", 500);
   return json({ token: g.token, first: name.split(" ")[0], amount: PRICES[ticket] / 100 });
@@ -186,11 +203,12 @@ async function admin(req: Request) {
   const id = String(b.id ?? "");
   if (b.op === "hide") await db.from("guests").update({ hidden: !!b.value }).eq("id", id);
   if (b.op === "checkin") await db.from("guests").update({ checked_in: !!b.value }).eq("id", id);
+  if (b.op === "crews") await db.from("settings").update({ crews: cleanCrews(b.crews) }).eq("id", 1);
   if (b.op === "settings") {
     await db.from("settings").update({ address: String(b.address ?? "").slice(0, 200), address_released: !!b.released }).eq("id", 1);
   }
   const { data: guests } = await db.from("guests")
-    .select("id,name,instagram,school,ticket,amount_cents,status,hidden,checked_in,photo_path,show_photo,created_at,paid_at")
+    .select("id,name,instagram,school,gender,phone,ticket,amount_cents,status,hidden,checked_in,photo_path,show_photo,created_at,paid_at")
     .order("created_at", { ascending: false });
   const { data: settings } = await db.from("settings").select("*").eq("id", 1).single();
   return json({

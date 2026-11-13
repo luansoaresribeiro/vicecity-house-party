@@ -57,8 +57,15 @@
       <button class="btn" type="submit" id="saveAddr">Save address</button>
     </form>
 
+    <form id="crewForm" class="card" style="display:grid;gap:12px;margin:0 0 20px">
+      <label style="letter-spacing:.25em;text-transform:uppercase;font-size:13px;color:var(--pink-soft);display:grid;gap:6px">Crews pulling up (shown on the site)
+        <textarea id="crewsInput" rows="5" maxlength="1600" placeholder="One per line — only groups that really confirmed&#10;FIU Brasa&#10;STU Volleyball" style="width:100%;font:500 18px 'Barlow Condensed';color:var(--cream);background:rgba(255,255,255,.06);border:1px solid rgba(247,239,227,.25);border-radius:10px;padding:12px 14px"></textarea>
+      </label>
+      <button class="btn" type="submit" id="saveCrews">Save crews</button>
+    </form>
+
     <div class="row filters" style="margin-bottom:12px">
-      <input type="search" id="q" placeholder="Search name or @">
+      <input type="search" id="q" placeholder="Search name, @ or phone">
       <button class="mini on" data-f="paid">Paid</button>
       <button class="mini" data-f="pending">Applied, not paid</button>
       <button class="mini" data-f="all">All</button>
