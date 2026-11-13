@@ -56,12 +56,6 @@
     </div>
   </section>
 
-  <section class="now-playing" id="nowPlaying" hidden aria-labelledby="npLabel">
-    <h2 id="npLabel" class="eyebrow">Now playing</h2>
-    <div class="np-frame"><div id="ytPlayer"></div></div>
-    <p class="np-title" id="npTitle"></p>
-  </section>
-
   <section class="wall-section" aria-labelledby="wallTitle">
     <h2 id="wallTitle" class="eyebrow">Who's pulling up</h2>
     <div class="wall" id="wall" role="list">
@@ -129,7 +123,11 @@
   <section class="ticket-page card" id="myTicket" hidden aria-live="polite"></section>
 </main>
 
-<button class="music-btn" id="musicBtn" hidden aria-pressed="false" aria-label="Play music"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span></button>
+<div class="music" id="music" hidden>
+  <span class="music-title" id="musicTitle"></span>
+  <button class="music-btn" id="musicBtn" aria-pressed="false" aria-label="Play music"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span></button>
+</div>
+<div class="yt-hidden" aria-hidden="true"><div id="ytPlayer"></div></div>
 
 <footer class="foot">
   <span class="palm" aria-hidden="true">🌴</span>
