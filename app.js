@@ -230,28 +230,6 @@
     } catch (err) { box.textContent = err.message; }
   }
 
-  // ---------- music (official YouTube player, starts on tap — browsers block sound on page load) ----------
-  if (P.music && P.music.youtubeId) {
-    $("music").hidden = false;
-    const id = encodeURIComponent(P.music.youtubeId);
-    let on = false;
-    const set = (v) => {
-      on = v; $("musicBtn").setAttribute("aria-pressed", v);
-      $("musicLabel").textContent = v ? "♫ " + P.music.title.split(" — ")[0] : "Play the vibe";
-      $("musicPlayer").hidden = !v;
-      if (v) {
-        const f = document.createElement("iframe");
-        f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&playsinline=1&loop=1&playlist=${id}`;
-        f.allow = "autoplay; encrypted-media"; f.title = P.music.title;
-        $("musicFrame").replaceChildren(f);
-      } else $("musicFrame").replaceChildren();
-    };
-    $("musicBtn").addEventListener("click", () => set(!on));
-    const compact = () => $("music").classList.toggle("compact", scrollY > 240);
-    addEventListener("scroll", compact, { passive: true }); compact();
-    $("musicClose").addEventListener("click", () => set(false));
-  }
-
   // ---------- boot ----------
   loadWall();
   if (!reduced) requestAnimationFrame(tick); else tick(0);

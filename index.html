@@ -20,6 +20,16 @@
 <body>
 <div class="sky" aria-hidden="true"></div>
 
+<div class="splash" id="splash" hidden role="dialog" aria-label="Enter the site">
+  <div class="splash-inner">
+    <p class="splash-top">College House Party</p>
+    <p class="splash-title">Vice City</p>
+    <p class="script">After Dark</p>
+    <button class="btn" id="enterBtn" type="button">Tap to enter 🌴</button>
+    <p class="fine">🔊 Sound on</p>
+  </div>
+</div>
+
 <header class="topline"><span></span><p>College House Party</p><span></span></header>
 
 <main>
@@ -44,6 +54,12 @@
       <p class="deadline" id="salesNote">Online tickets <strong>until Wed, Nov 18 at midnight</strong>.
         After that, text or call <a class="phone" href="sms:+17866566926">786-656-6926</a> to request a ticket · At the door: $70</p>
     </div>
+  </section>
+
+  <section class="now-playing" id="nowPlaying" hidden aria-labelledby="npLabel">
+    <h2 id="npLabel" class="eyebrow">Now playing</h2>
+    <div class="np-frame"><div id="ytPlayer"></div></div>
+    <p class="np-title" id="npTitle"></p>
   </section>
 
   <section class="wall-section" aria-labelledby="wallTitle">
@@ -113,13 +129,7 @@
   <section class="ticket-page card" id="myTicket" hidden aria-live="polite"></section>
 </main>
 
-<div class="music" id="music" hidden>
-  <div class="music-player" id="musicPlayer" hidden>
-    <button class="music-close" id="musicClose" aria-label="Stop music">×</button>
-    <div id="musicFrame"></div>
-  </div>
-  <button class="music-btn" id="musicBtn" aria-pressed="false"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span><span id="musicLabel">Play the vibe</span></button>
-</div>
+<button class="music-btn" id="musicBtn" hidden aria-pressed="false" aria-label="Play music"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span></button>
 
 <footer class="foot">
   <span class="palm" aria-hidden="true">🌴</span>
@@ -128,5 +138,6 @@
 
 <script src="/config.js"></script>
 <script src="/app.js"></script>
+<script src="/music.js"></script>
 </body>
 </html>
