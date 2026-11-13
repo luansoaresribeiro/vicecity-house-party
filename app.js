@@ -154,17 +154,20 @@
     const f = e.target;
     const name = f.name.value.trim(), instagram = cleanHandle(f.instagram.value), school = f.school.value;
     const gender = (f.querySelector("input[name=gender]:checked") || {}).value;
+    const refName = $("refName").value.trim().replace(/\s+/g, " "), refSchool = $("refSchool").value;
     const phone = f.phone.value.trim(), digits = phone.replace(/\D/g, "");
     if (name.length < 2) return showError("Add your name.");
     if (!/^[a-z0-9._]{1,30}$/.test(instagram)) return showError("That Instagram handle doesn't look right.");
     if (digits.length < 10 || digits.length > 15) return showError("Add a valid phone number.");
     if (!school) return showError("Pick your school.");
+    if (school === "Other" && refName.length < 2) return showError("Tell us who invited you.");
+    if (school === "Other" && !refSchool) return showError("Pick the school of who invited you.");
     if (!gender) return showError("Select your gender.");
     if (!$("terms").checked) return showError("Please confirm you understand there are no refunds.");
     if (PREVIEW) return showError("Preview mode — payments turn on once the site is connected.");
     $("payBtn").disabled = true; $("payBtn").textContent = "Sending…";
     try {
-      const d = await api("apply", { name, instagram, phone, school, gender, showPhoto: $("showPhoto").checked, photo: photoData });
+      const d = await api("apply", { name, instagram, phone, school, gender, refName, refSchool, showPhoto: $("showPhoto").checked, photo: photoData });
       history.replaceState(null, "", "/?t=" + d.token);
       showApplied(d.token, d);
     } catch (err) {
@@ -199,6 +202,13 @@
     box.scrollIntoView({ behavior: "smooth", block: "center" });
   }
   $("instagram").addEventListener("blur", (e) => { e.target.value = cleanHandle(e.target.value); });
+  // "Other" school → must say who invited them (event is exclusive to STU, FIU & UM)
+  $("school").addEventListener("change", (e) => {
+    const other = e.target.value === "Other";
+    $("referral").hidden = !other;
+    if (other) $("refName").focus();
+  });
+
   // gender decides the price
   document.querySelectorAll("input[name=gender]").forEach((r) => r.addEventListener("change", () => {
     const ladies = r.value === "female";

@@ -34,9 +34,16 @@
 
 <main>
   <section class="hero">
+    <div class="flyer-wrap">
+    <div class="seal" role="img" aria-label="Exclusive for STU, FIU and UM students">
+      <span class="seal-top">Exclusive</span>
+      <span class="seal-mid">STU · FIU · UM</span>
+      <span class="seal-bot">Students only</span>
+    </div>
     <figure class="flyer">
       <img src="/assets/flyer.webp" alt="Vice City — After Dark flyer. Friday, Nov 20th. Address TBA. Dress code: Miami Vice." width="1024" height="1536">
     </figure>
+    </div>
 
     <div class="info">
       <p class="script">After Dark</p>
@@ -98,10 +105,26 @@
         <select name="school" id="school" required>
           <option value="" disabled selected>Choose one</option>
           <option value="FIU">FIU</option>
-          <option value="St. Thomas">St. Thomas</option>
+          <option value="St. Thomas">St. Thomas (STU)</option>
+          <option value="UM">UM (University of Miami)</option>
           <option value="Other">Other</option>
         </select>
       </label>
+
+      <div class="referral" id="referral" hidden>
+        <p class="ref-note">✨ Exclusive for STU, FIU &amp; UM students. Not one of them? Tell us who invited you.</p>
+        <label>Who invited you?
+          <input id="refName" maxlength="60" autocomplete="off" placeholder="Their full name">
+        </label>
+        <label>Their school
+          <select id="refSchool">
+            <option value="" disabled selected>Choose one</option>
+            <option value="FIU">FIU</option>
+            <option value="St. Thomas">St. Thomas (STU)</option>
+            <option value="UM">UM (University of Miami)</option>
+          </select>
+        </label>
+      </div>
 
       <fieldset class="ticket-pick">
         <legend>Gender</legend>
