@@ -143,6 +143,9 @@ legend{width:100%;margin-bottom:6px}
 .referral{display:grid;gap:14px;padding:14px;border:1.5px solid #e9c25e;border-radius:12px;background:rgba(246,216,120,.07)}
 .referral label{display:grid;gap:6px;letter-spacing:.25em;text-transform:uppercase;font-size:13px;font-weight:600;color:#f3d27a}
 .ref-note{font-size:17px;line-height:1.35;color:var(--cream)}
+.list-note{max-width:620px;margin:0 auto 14px;text-align:center;font-size:19px;line-height:1.4;padding:12px 16px;border-radius:12px;
+  border:1.5px solid #e9c25e;background:rgba(246,216,120,.08);color:var(--cream)}
+.list-note strong{color:#f3d27a}
 .your-price{width:100%;text-align:center;font-size:18px;letter-spacing:.06em;color:var(--muted);margin-top:4px}
 .your-price b{color:#fff;font-size:22px}
 .crews{margin-top:22px}

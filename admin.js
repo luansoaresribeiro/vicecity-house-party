@@ -37,6 +37,12 @@
       [inside, "checked in"],
     ].map(([b, s]) => { const d = document.createElement("div"); d.innerHTML = "<b></b><span></span>"; d.children[0].textContent = b; d.children[1].textContent = s; return d; }));
 
+    const open = !!state.settings.payments_open;
+    $("paySwitch").classList.toggle("open", open);
+    $("payState").textContent = open ? "Payments: OPEN" : "Payments: closed";
+    $("payHint").textContent = open ? "People can pay now. Closing it hides payment again (nothing is deleted)."
+      : 'Only "Join the list" is open. Flip this when the house is confirmed.';
+    $("payToggle").textContent = open ? "Close payments" : "Open payments";
     if (document.activeElement !== $("address")) $("address").value = state.settings.address;
     if (document.activeElement !== $("crewsInput")) $("crewsInput").value = (state.settings.crews || []).join("\n");
     $("released").checked = state.settings.address_released;
@@ -61,7 +67,7 @@
     const sm = document.createElement("small");
     const sex = g.gender === "female" ? "Female" : g.gender === "male" ? "Male" : "";
     sm.textContent = `@${g.instagram} · ${g.school}${sex ? " · " + sex : ""} · ${g.ticket === "ladies" ? "Ladies $20" : "Guys $40"}${g.phone ? " · " + g.phone : ""}${g.referrer_name ? ` · invited by ${g.referrer_name} (${g.referrer_school})` : ""}${g.status === "paid" && !g.show_photo ? " · mystery on wall" : ""}`;
-    const tag = document.createElement("span"); tag.className = "tag " + g.status; tag.textContent = g.status === "paid" ? "paid" : "applied · not paid";
+    const tag = document.createElement("span"); tag.className = "tag " + g.status; tag.textContent = g.status === "paid" ? "paid" : "on the list · not paid";
     who.append(b, " ", tag, sm);
 
     const acts = document.createElement("div"); acts.className = "acts";
@@ -88,6 +94,18 @@
     $("saveAddr").textContent = "Saving…";
     await load({ op: "settings", address: $("address").value.trim(), released: $("released").checked });
     $("saveAddr").textContent = "Saved ✓"; setTimeout(() => ($("saveAddr").textContent = "Save address"), 1500);
+  });
+  $("payToggle").addEventListener("click", () => {
+    const open = !state.settings.payments_open;
+    const msg = open
+      ? "Open payments now? Everyone on the site will see the Pay button right away. Make sure the Stripe keys are set."
+      : "Close payments? The Pay button disappears (nothing is deleted).";
+    if (confirm(msg)) load({ op: "payments", value: open });
+  });
+  $("copyPhones").addEventListener("click", async () => {
+    const phones = [...new Set(state.guests.filter((g) => g.status !== "paid" && g.phone).map((g) => g.phone))];
+    try { await navigator.clipboard.writeText(phones.join("\n")); $("copyMsg").textContent = `${phones.length} numbers copied ✓`; }
+    catch { prompt("Copy these numbers:", phones.join(", ")); }
   });
   $("crewForm").addEventListener("submit", async (e) => {
     e.preventDefault();

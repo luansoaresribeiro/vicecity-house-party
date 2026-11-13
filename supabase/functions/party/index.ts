@@ -60,13 +60,23 @@ async function markPaid(guestId: string, sessionId: string) {
     .eq("id", guestId).eq("status", "pending");
 }
 
+// organizer switch in /admin: false = "Join the list" only, true = people can pay
+async function paymentsOpen() {
+  const { data } = await db.from("settings").select("payments_open").eq("id", 1).single();
+  return !!data?.payments_open;
+}
+
 // ---------- public: guest wall ----------
+// List phase (payments closed): everyone who joined the list shows up. Once payments open: only paid guests.
 async function wall() {
-  const { data, error } = await db.from("guests")
-    .select("id,name,instagram,photo_path,show_photo,hidden")
-    .eq("status", "paid").order("paid_at", { ascending: true });
+  const open = await paymentsOpen();
+  let q = db.from("guests").select("id,name,instagram,photo_path,show_photo,hidden");
+  q = open ? q.eq("status", "paid").order("paid_at", { ascending: true }) : q.order("created_at", { ascending: true });
+  const { data, error } = await q;
   if (error) return fail("Couldn't load the guest list.", 500);
-  const guests = data.map((g) => {
+  // one bubble per @ (someone may have joined twice) — keep their latest entry, in the original order
+  const latest = new Map(data.map((g) => [g.instagram, g.id]));
+  const guests = data.filter((g) => latest.get(g.instagram) === g.id).map((g) => {
     if (!g.show_photo || g.hidden) return { id: g.id, mystery: true }; // "?" bubble: no name, no @, no photo
     const [first, last] = g.name.trim().split(/\s+/);
     return {
@@ -76,7 +86,7 @@ async function wall() {
     };
   });
   const { data: st } = await db.from("settings").select("crews").eq("id", 1).single();
-  return json({ guests, crews: cleanCrews(st?.crews), ...(await counts()), capacity: CAPACITY });
+  return json({ guests, crews: cleanCrews(st?.crews), paymentsOpen: open, ...(await counts()), capacity: CAPACITY });
 }
 
 const closedMsg = `Online sales are closed. Text or call ${PHONE} to request a ticket.`;
@@ -121,18 +131,25 @@ async function apply(req: Request) {
     if (up.error) photo_path = null;
   }
 
-  const { data: g, error } = await db.from("guests").insert({
+  const fields = {
     name, instagram, school, gender, phone, ticket,
-    referrer_name: refName || null, referrer_school: refSchool || null, amount_cents: PRICES[ticket], photo_path, show_photo: b.showPhoto !== false,
-  }).select("id,token").single();
+    referrer_name: refName || null, referrer_school: refSchool || null, amount_cents: PRICES[ticket], show_photo: b.showPhoto !== false,
+  };
+  // same @ already on the list (not paid) → update that entry instead of adding a duplicate
+  const { data: prev } = await db.from("guests").select("id,photo_path").eq("instagram", instagram).eq("status", "pending")
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data: g, error } = prev
+    ? await db.from("guests").update({ ...fields, photo_path: photo_path ?? prev.photo_path }).eq("id", prev.id).select("id,token").single()
+    : await db.from("guests").insert({ ...fields, photo_path }).select("id,token").single();
   if (error || !g) return fail("Couldn't save your application. Try again.", 500);
-  return json({ token: g.token, first: name.split(" ")[0], amount: PRICES[ticket] / 100 });
+  return json({ token: g.token, first: name.split(" ")[0], amount: PRICES[ticket] / 100, paymentsOpen: await paymentsOpen() });
 }
 
 // ---------- public: step 2, pay (fresh Stripe checkout each time, holds the spot 30 min) ----------
 async function pay(req: Request) {
   if (Date.now() > SALES_CLOSE) return fail(closedMsg);
-  if (!env("STRIPE_SECRET_KEY") || !SITE) return fail("Payments open soon. 🌴 Your application is saved.", 503);
+  if (!(await paymentsOpen())) return fail("Tickets aren't on sale yet — we'll text you the moment they drop. 🌴");
+  if (!env("STRIPE_SECRET_KEY") || !SITE) return fail("Payments open soon. 🌴 You're on the list.", 503);
   const b = await req.json().catch(() => ({}));
   const t = String(b.t ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(t)) return fail("Application not found.", 404);
@@ -175,6 +192,7 @@ async function ticketPage(url: URL) {
   const { data: st } = await db.from("settings").select("*").eq("id", 1).single();
   return json({
     id: g.id, name: g.name, instagram: g.instagram, ticket: g.ticket, status: g.status, amount: g.amount_cents / 100,
+    paymentsOpen: !!st?.payments_open,
     photo: photoUrl(g.photo_path), // their own page always shows their own photo
     address: g.status === "paid" && st?.address_released ? st.address : null,
   });
@@ -209,6 +227,7 @@ async function admin(req: Request) {
   const id = String(b.id ?? "");
   if (b.op === "hide") await db.from("guests").update({ hidden: !!b.value }).eq("id", id);
   if (b.op === "checkin") await db.from("guests").update({ checked_in: !!b.value }).eq("id", id);
+  if (b.op === "payments") await db.from("settings").update({ payments_open: !!b.value }).eq("id", 1);
   if (b.op === "crews") await db.from("settings").update({ crews: cleanCrews(b.crews) }).eq("id", 1);
   if (b.op === "settings") {
     await db.from("settings").update({ address: String(b.address ?? "").slice(0, 200), address_released: !!b.released }).eq("id", 1);

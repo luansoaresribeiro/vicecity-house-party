@@ -3,6 +3,15 @@
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   const PREVIEW = !P.api;
+  let paymentsOpen = false; // organizer flips this in /admin; until then the form is a "Join the list"
+  const submitLabel = () => (paymentsOpen ? "Apply" : "Join the list");
+  function applyMode(open) {
+    paymentsOpen = !!open;
+    if (!$("payBtn").disabled) $("payBtn").textContent = submitLabel();
+    if (!salesClosed()) $("heroCta").textContent = paymentsOpen ? "Get your ticket" : "Join the list";
+    $("listNote").hidden = paymentsOpen;
+    $("finePay").hidden = !paymentsOpen; $("fineList").hidden = paymentsOpen;
+  }
   const salesClosed = () => Date.now() > Date.parse(P.salesClose);
 
   // ---------- API ----------
@@ -128,6 +137,7 @@
     }
     try {
       const d = await api("wall");
+      applyMode(d.paymentsOpen);
       renderWall(d.guests); renderCounts(d.going, d.held); renderCrews(d.crews);
     } catch { /* keep last state */ }
   }
@@ -171,7 +181,7 @@
       history.replaceState(null, "", "/?t=" + d.token);
       showApplied(d.token, d);
     } catch (err) {
-      showError(err.message); $("payBtn").disabled = false; $("payBtn").textContent = "Apply";
+      showError(err.message); $("payBtn").disabled = false; $("payBtn").textContent = submitLabel();
     }
   });
 
@@ -190,9 +200,22 @@
     note.textContent = "Secure checkout by Stripe · card, Apple Pay, Google Pay · All sales final, no refunds";
     return [btn, note];
   }
+  function onTheList(first) {
+    const h = document.createElement("h2"); h.textContent = `You're on the list, ${first}! 🌴`;
+    const p = document.createElement("p"); p.className = "warn";
+    p.textContent = "Tickets drop soon — we'll text you the moment payment opens.";
+    const f = document.createElement("p"); f.className = "fine";
+    f.textContent = "Spots are first come, first served, and your spot is only guaranteed once you pay. Bookmark this page — it's your link to pay when tickets drop.";
+    return [h, p, f];
+  }
   function showApplied(token, d) {
     $("rsvp").hidden = true;
     const box = $("applied"); box.hidden = false;
+    if (!d.paymentsOpen && !paymentsOpen) {
+      box.replaceChildren(...onTheList(d.first));
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     const h = document.createElement("h2"); h.textContent = `Application received, ${d.first}! 🌴`;
     const warn = document.createElement("p"); warn.className = "warn";
     warn.textContent = "Your spot is only guaranteed once you pay.";
@@ -242,6 +265,9 @@
         const note = document.createElement("p"); note.className = "fine";
         note.textContent = "Show this page at the door. Your Stripe receipt was sent to your email.";
         box.append(h, me, p, addr, note);
+      } else if (!d.paymentsOpen) {
+        box.append(...onTheList(d.name.split(" ")[0]));
+        $("rsvp").hidden = true;
       } else {
         h.textContent = `Hey ${d.name.split(" ")[0]}, almost there`;
         p.className = "warn";
