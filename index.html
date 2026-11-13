@@ -103,9 +103,11 @@
       <label class="check"><input type="checkbox" id="terms" required> I get it: <strong>all sales are final, no refunds.</strong></label>
 
       <p class="error" id="formError" role="alert" hidden></p>
-      <button class="btn wide" type="submit" id="payBtn">Pay &amp; lock my spot</button>
-      <p class="fine">Secure checkout by Stripe · card, Apple Pay, Google Pay</p>
+      <button class="btn wide" type="submit" id="payBtn">Apply</button>
+      <p class="fine center">Next step: pay to lock your spot. <strong>Your spot is only guaranteed once you pay.</strong></p>
     </form>
+
+    <div class="card applied" id="applied" hidden aria-live="polite"></div>
   </section>
 
   <section class="ticket-page card" id="myTicket" hidden aria-live="polite"></section>

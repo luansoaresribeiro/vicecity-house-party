@@ -58,15 +58,14 @@
     const who = document.createElement("div"); who.className = "who";
     const b = document.createElement("b"); b.textContent = g.name;
     const sm = document.createElement("small");
-    const abandoned = g.status === "pending" && g.created_at < state.holdSince;
-    sm.textContent = `@${g.instagram} · ${g.school} · ${g.ticket === "ladies" ? "Ladies $20" : "Guys $40"}${abandoned ? " · gave up at checkout" : ""}`;
-    const tag = document.createElement("span"); tag.className = "tag " + g.status; tag.textContent = g.status === "paid" ? "paid" : "not paid";
+    sm.textContent = `@${g.instagram} · ${g.school} · ${g.ticket === "ladies" ? "Ladies $20" : "Guys $40"}${g.status === "paid" && !g.show_photo ? " · mystery on wall" : ""}`;
+    const tag = document.createElement("span"); tag.className = "tag " + g.status; tag.textContent = g.status === "paid" ? "paid" : "applied · not paid";
     who.append(b, " ", tag, sm);
 
     const acts = document.createElement("div"); acts.className = "acts";
     if (g.status === "paid") {
       acts.append(btn(g.checked_in ? "✓ Inside" : "Check in", g.checked_in, () => load({ op: "checkin", id: g.id, value: !g.checked_in })));
-      acts.append(btn(g.hidden ? "Hidden from wall" : "Hide from wall", g.hidden, () => load({ op: "hide", id: g.id, value: !g.hidden })));
+      acts.append(btn(g.hidden ? "Shown as ?" : "Show as ? on wall", g.hidden, () => load({ op: "hide", id: g.id, value: !g.hidden })));
     }
     const ig = document.createElement("a"); ig.className = "mini"; ig.textContent = "Instagram"; ig.target = "_blank"; ig.rel = "noopener";
     ig.href = "https://instagram.com/" + encodeURIComponent(g.instagram); ig.style.textDecoration = "none";

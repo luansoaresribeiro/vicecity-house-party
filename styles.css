@@ -66,6 +66,9 @@ main{max-width:1100px;margin:0 auto;padding:0 16px}
 .music-btn[aria-pressed=true] .eq i:nth-child(2){animation-delay:.2s}
 .music-btn[aria-pressed=true] .eq i:nth-child(3){animation-delay:.4s}
 @keyframes eq{0%,100%{height:4px}50%{height:14px}}
+/* after scrolling, the button shrinks to a small circle so it never covers the form */
+.music.compact .music-btn{padding:0;width:46px;height:46px;justify-content:center}
+.music.compact #musicLabel{display:none}
 .music-player{position:relative;width:220px;aspect-ratio:16/9;border-radius:12px;overflow:hidden;border:1px solid var(--pink);box-shadow:var(--glow);background:#000}
 .music-player iframe{width:100%;height:100%;border:0;display:block}
 .music-close{position:absolute;top:4px;right:4px;z-index:1;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.7);color:#fff;font-size:18px;line-height:1;cursor:pointer}
@@ -82,6 +85,8 @@ main{max-width:1100px;margin:0 auto;padding:0 16px}
   font-weight:700;font-size:calc(var(--s,84px)*.36);letter-spacing:.04em}
 .bubble .face img{width:100%;height:100%;object-fit:cover}
 .bubble .handle{font-size:14px;font-weight:600;letter-spacing:.04em;background:rgba(18,5,28,.75);padding:2px 8px;border-radius:999px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.bubble.mystery .face{background:radial-gradient(circle at 35% 30%,#5a2380,#22092f);color:var(--pink-soft);font-size:calc(var(--s,84px)*.5);font-family:"Kaushan Script",cursive;font-weight:400}
+.bubble.filler{opacity:.55}
 .bubble.me .face{border-color:#fff;box-shadow:0 0 0 3px var(--pink),var(--glow)}
 
 /* tickets */
@@ -106,7 +111,7 @@ input:focus,select:focus{outline:2px solid var(--pink);outline-offset:1px}
 fieldset{border:0;display:flex;flex-wrap:wrap;gap:10px}
 legend{width:100%;margin-bottom:6px}
 .pill{flex:1;min-width:140px;position:relative}
-.pill input{position:absolute;opacity:0;width:1px;height:1px;left:50%;top:50%}
+.pill input{position:absolute;opacity:0;width:1px;height:1px;left:50%;top:50%;pointer-events:none}
 .pill span{display:block;text-align:center;padding:12px;border-radius:999px;border:1.5px solid var(--pink);font-size:19px;font-weight:600;letter-spacing:.08em;cursor:pointer}
 .pill input:checked+span{background:var(--pink);box-shadow:var(--glow)}
 .pill input:focus-visible+span{outline:2px solid #fff}
@@ -118,6 +123,12 @@ legend{width:100%;margin-bottom:6px}
 .check input{width:20px;height:20px;margin-top:2px;flex:none;accent-color:var(--pink)}
 .error{color:#ffd1e4;background:rgba(255,46,138,.18);border:1px solid var(--pink);border-radius:10px;padding:10px 14px}
 .closed-msg{text-align:center;font-size:20px;padding:6px 0 2px}
+
+.applied{text-align:center;display:grid;gap:14px}
+.applied h2{font-family:"Kaushan Script",cursive;color:var(--pink);font-size:36px;font-weight:400;text-shadow:var(--glow)}
+.warn{font-size:20px;font-weight:600;color:#fff;background:rgba(255,46,138,.18);border:1.5px solid var(--pink);border-radius:12px;padding:10px 14px}
+.fine.center{text-align:center}
+.fine strong{color:var(--cream)}
 
 /* my ticket */
 .ticket-page{margin-top:24px;text-align:center;display:grid;gap:14px;justify-items:center}

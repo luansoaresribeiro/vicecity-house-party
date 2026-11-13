@@ -20,6 +20,16 @@
   const cleanHandle = (h) => h.trim().replace(/^@+/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/[/?].*$/, "").toLowerCase();
 
   function bubbleEl(g, me) {
+    if (g.mystery || g.filler) {
+      // "?" bubble: a guest who chose not to show up on the wall, or a placeholder while the wall fills up
+      const m = document.createElement("span");
+      m.className = "bubble mystery" + (g.filler ? " filler" : "");
+      m.setAttribute("role", "listitem");
+      const face = document.createElement("span"); face.className = "face"; face.textContent = "?";
+      m.append(face);
+      if (g.mystery) { const h = document.createElement("span"); h.className = "handle"; h.textContent = "Mystery guest"; m.append(h); }
+      return m;
+    }
     const a = document.createElement("a");
     a.className = "bubble" + (me ? " me" : "");
     a.href = `https://instagram.com/${encodeURIComponent(g.instagram)}`;
@@ -47,8 +57,10 @@
     return Math.max(46, Math.min(92, s));
   }
 
-  function renderWall(guests) {
-    $("wallEmpty").hidden = guests.length > 0;
+  const MIN_BUBBLES = 12; // the wall never looks empty: "?" placeholders until 12 real guests
+  function renderWall(real) {
+    const guests = real.concat(Array.from({ length: Math.max(0, MIN_BUBBLES - real.length) }, (_, i) => ({ id: "filler-" + i, filler: true })));
+    $("wallEmpty").hidden = true;
     const ids = new Set(guests.map((g) => g.id));
     for (const [id, f] of floaters) if (!ids.has(id)) { f.el.remove(); floaters.delete(id); }
     const s = sizeFor(guests.length);
@@ -111,8 +123,8 @@
   async function loadWall() {
     if (PREVIEW) {
       const sample = ["jordan.m", "sofia.rr", "mike_305", "isa.vibes", "dani.fiu", "chris.stu", "val.mia", "leo.dade", "nat.sun", "gabi.linen", "tony.v", "mari.305"];
-      const guests = params.has("preview") ? sample.map((h, i) => ({ id: h, instagram: h, name: h.replace(/[._\d]/g, " ") })) : [];
-      renderWall(guests); renderCounts(guests.length, 0); return;
+      const guests = params.has("preview") ? sample.slice(0, 5).map((h) => ({ id: h, instagram: h, name: h.replace(/[._\d]/g, " ") })).concat([{ id: "m1", mystery: true }]) : [];
+      renderWall(guests); renderCounts(0, 0); return;
     }
     try {
       const d = await api("wall");
@@ -148,17 +160,43 @@
     if (!ticket) return showError("Choose Ladies or Guys.");
     if (!$("terms").checked) return showError("Please confirm you understand there are no refunds.");
     if (PREVIEW) return showError("Preview mode — payments turn on once the site is connected.");
-    $("payBtn").disabled = true; $("payBtn").textContent = "Opening checkout…";
+    $("payBtn").disabled = true; $("payBtn").textContent = "Sending…";
     try {
-      const d = await api("checkout", { name, instagram, school, ticket, showPhoto: $("showPhoto").checked, photo: photoData });
-      location.href = d.url;
+      const d = await api("apply", { name, instagram, school, ticket, showPhoto: $("showPhoto").checked, photo: photoData });
+      history.replaceState(null, "", "/?t=" + d.token);
+      showApplied(d.token, d);
     } catch (err) {
-      showError(err.message); $("payBtn").disabled = false; $("payBtn").textContent = "Pay & lock my spot";
+      showError(err.message); $("payBtn").disabled = false; $("payBtn").textContent = "Apply";
     }
   });
+
+  // ---------- step 2: pay ----------
+  async function startPayment(token, btn) {
+    const label = btn.textContent;
+    btn.disabled = true; btn.textContent = "Opening checkout…";
+    try { location.href = (await api("pay", { t: token })).url; }
+    catch (err) { btn.disabled = false; btn.textContent = label; alert(err.message); }
+  }
+  function payBlock(token, amount) {
+    const btn = document.createElement("button");
+    btn.className = "btn wide"; btn.type = "button"; btn.textContent = `Pay $${amount} now`;
+    btn.onclick = () => startPayment(token, btn);
+    const note = document.createElement("p"); note.className = "fine";
+    note.textContent = "Secure checkout by Stripe · card, Apple Pay, Google Pay · All sales final, no refunds";
+    return [btn, note];
+  }
+  function showApplied(token, d) {
+    $("rsvp").hidden = true;
+    const box = $("applied"); box.hidden = false;
+    const h = document.createElement("h2"); h.textContent = `Application received, ${d.first}! 🌴`;
+    const warn = document.createElement("p"); warn.className = "warn";
+    warn.textContent = "Your spot is only guaranteed once you pay.";
+    const later = document.createElement("p"); later.className = "fine";
+    later.textContent = "Not ready? Bookmark this page — it's your link to come back and pay before Wed, Nov 18 at midnight. Spots go to whoever pays first.";
+    box.replaceChildren(h, warn, ...payBlock(token, d.amount), later);
+    box.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
   $("instagram").addEventListener("blur", (e) => { e.target.value = cleanHandle(e.target.value); });
-  const labelFor = () => { const t = document.querySelector("input[name=ticket]:checked"); $("payBtn").textContent = t ? `Pay $${P.prices[t.value]} & lock my spot` : "Pay & lock my spot"; };
-  document.querySelectorAll("input[name=ticket]").forEach((r) => r.addEventListener("change", labelFor));
 
   // ---------- my ticket (after Stripe sends people back with ?t=token) ----------
   async function loadTicket(token) {
@@ -181,9 +219,13 @@
         note.textContent = "Show this page at the door. Your Stripe receipt was sent to your email.";
         box.append(h, me, p, addr, note);
       } else {
-        h.textContent = "Almost there";
-        p.textContent = "We haven't received your payment yet. If you just paid, give it a minute and refresh.";
-        box.append(h, p);
+        h.textContent = `Hey ${d.name.split(" ")[0]}, almost there`;
+        p.className = "warn";
+        p.textContent = "Your application is in, but your spot is only guaranteed once you pay.";
+        const hint = document.createElement("p"); hint.className = "fine";
+        hint.textContent = "Just paid? Give it a minute and refresh this page.";
+        box.append(h, p, ...(salesClosed() ? [] : payBlock(token, d.amount)), hint);
+        $("rsvp").hidden = true;
       }
     } catch (err) { box.textContent = err.message; }
   }
@@ -205,6 +247,8 @@
       } else $("musicFrame").replaceChildren();
     };
     $("musicBtn").addEventListener("click", () => set(!on));
+    const compact = () => $("music").classList.toggle("compact", scrollY > 240);
+    addEventListener("scroll", compact, { passive: true }); compact();
     $("musicClose").addEventListener("click", () => set(false));
   }
 

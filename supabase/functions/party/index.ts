@@ -6,7 +6,8 @@ import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 const CAPACITY = 200;
 const PRICES: Record<string, number> = { ladies: 2000, guys: 4000 }; // cents
 const SALES_CLOSE = Date.parse("2026-11-18T23:59:59-05:00");
-const HOLD_MIN = 30; // a pending checkout holds a spot for 30 min (Stripe's minimum session life)
+const HOLD_MIN = 30; // opening checkout holds a spot for 30 min (Stripe's minimum session life)
+const PHONE = "786-656-6926";
 const SCHOOLS = ["FIU", "St. Thomas", "Other"];
 
 const env = (k: string) => Deno.env.get(k) ?? "";
@@ -31,39 +32,44 @@ const photoUrl = (path: string | null) =>
   path ? `${env("SUPABASE_URL")}/storage/v1/object/public/guest-photos/${path}` : null;
 const holdSince = () => new Date(Date.now() - HOLD_MIN * 60_000).toISOString();
 
-async function counts() {
+async function counts(exceptId?: string) {
   const paid = await db.from("guests").select("id", { count: "exact", head: true }).eq("status", "paid");
-  const held = await db.from("guests").select("id", { count: "exact", head: true })
-    .eq("status", "pending").gte("created_at", holdSince());
+  let q = db.from("guests").select("id", { count: "exact", head: true })
+    .eq("status", "pending").gte("checkout_started_at", holdSince());
+  if (exceptId) q = q.neq("id", exceptId);
+  const held = await q;
   return { going: paid.count ?? 0, held: held.count ?? 0 };
 }
 
 async function markPaid(guestId: string, sessionId: string) {
-  await db.from("guests").update({ status: "paid", paid_at: new Date().toISOString() })
-    .eq("id", guestId).eq("stripe_session_id", sessionId).eq("status", "pending");
+  await db.from("guests").update({ status: "paid", paid_at: new Date().toISOString(), stripe_session_id: sessionId })
+    .eq("id", guestId).eq("status", "pending");
 }
 
 // ---------- public: guest wall ----------
 async function wall() {
   const { data, error } = await db.from("guests")
-    .select("id,name,instagram,photo_path,show_photo")
-    .eq("status", "paid").eq("hidden", false).order("paid_at", { ascending: true });
+    .select("id,name,instagram,photo_path,show_photo,hidden")
+    .eq("status", "paid").order("paid_at", { ascending: true });
   if (error) return fail("Couldn't load the guest list.", 500);
   const guests = data.map((g) => {
+    if (!g.show_photo || g.hidden) return { id: g.id, mystery: true }; // "?" bubble: no name, no @, no photo
     const [first, last] = g.name.trim().split(/\s+/);
     return {
       id: g.id, instagram: g.instagram,
       name: last ? `${first} ${last[0]}.` : first, // never expose full last names publicly
-      photo: g.show_photo ? photoUrl(g.photo_path) : null,
+      photo: photoUrl(g.photo_path),
     };
   });
   return json({ guests, ...(await counts()), capacity: CAPACITY });
 }
 
-// ---------- public: start checkout ----------
-async function checkout(req: Request) {
-  if (Date.now() > SALES_CLOSE) return fail("Online sales are closed. Text or call 786-656-6926 to request a ticket.");
-  if (!env("STRIPE_SECRET_KEY") || !SITE) return fail("Ticket sales open soon. 🌴", 503);
+const closedMsg = `Online sales are closed. Text or call ${PHONE} to request a ticket.`;
+const soldOutMsg = `Sold out online 🔥 Text or call ${PHONE} to request a ticket.`;
+
+// ---------- public: step 1, apply (saves the guest; spot NOT held yet) ----------
+async function apply(req: Request) {
+  if (Date.now() > SALES_CLOSE) return fail(closedMsg);
   const b = await req.json().catch(() => null);
   if (!b) return fail("Bad request.");
   const name = String(b.name ?? "").trim().replace(/\s+/g, " ");
@@ -80,7 +86,7 @@ async function checkout(req: Request) {
   if ((dup.count ?? 0) > 0) return fail(`@${instagram} already has a ticket. 🌴`);
 
   const { going, held } = await counts();
-  if (going + held >= CAPACITY) return fail("Sold out online 🔥 Text or call 786-656-6926 to request a ticket.");
+  if (going + held >= CAPACITY) return fail(soldOutMsg);
 
   // optional selfie: a small JPEG data URL made by the browser
   let photo_path: string | null = null;
@@ -96,24 +102,39 @@ async function checkout(req: Request) {
   const { data: g, error } = await db.from("guests").insert({
     name, instagram, school, ticket, amount_cents: PRICES[ticket], photo_path, show_photo: b.showPhoto !== false,
   }).select("id,token").single();
-  if (error || !g) return fail("Couldn't save your RSVP. Try again.", 500);
+  if (error || !g) return fail("Couldn't save your application. Try again.", 500);
+  return json({ token: g.token, first: name.split(" ")[0], amount: PRICES[ticket] / 100 });
+}
+
+// ---------- public: step 2, pay (fresh Stripe checkout each time, holds the spot 30 min) ----------
+async function pay(req: Request) {
+  if (Date.now() > SALES_CLOSE) return fail(closedMsg);
+  if (!env("STRIPE_SECRET_KEY") || !SITE) return fail("Payments open soon. 🌴 Your application is saved.", 503);
+  const b = await req.json().catch(() => ({}));
+  const t = String(b.t ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(t)) return fail("Application not found.", 404);
+  const { data: g } = await db.from("guests").select("*").eq("token", t).maybeSingle();
+  if (!g) return fail("Application not found.", 404);
+  if (g.status === "paid") return fail("You already paid. You're in! 🌴");
+  const { going, held } = await counts(g.id);
+  if (going + held >= CAPACITY) return fail(soldOutMsg);
 
   const session = await stripeClient().checkout.sessions.create({
     mode: "payment",
     line_items: [{
       quantity: 1,
       price_data: {
-        currency: "usd", unit_amount: PRICES[ticket],
-        product_data: { name: `Vice City — After Dark · ${ticket === "ladies" ? "Ladies" : "Guys"} ticket`, description: "Fri, Nov 20 · 8PM–4AM · All sales final, no refunds" },
+        currency: "usd", unit_amount: g.amount_cents,
+        product_data: { name: `Vice City — After Dark · ${g.ticket === "ladies" ? "Ladies" : "Guys"} ticket`, description: "Fri, Nov 20 · 8PM–4AM · All sales final, no refunds" },
       },
     }],
     client_reference_id: g.id,
-    metadata: { guest_id: g.id, instagram },
+    metadata: { guest_id: g.id, instagram: g.instagram },
     success_url: `${SITE}/?t=${g.token}`,
-    cancel_url: `${SITE}/#tickets`,
+    cancel_url: `${SITE}/?t=${g.token}`,
     expires_at: Math.floor(Date.now() / 1000) + HOLD_MIN * 60 + 60,
   });
-  await db.from("guests").update({ stripe_session_id: session.id }).eq("id", g.id);
+  await db.from("guests").update({ stripe_session_id: session.id, checkout_started_at: new Date().toISOString() }).eq("id", g.id);
   return json({ url: session.url });
 }
 
@@ -130,8 +151,8 @@ async function ticketPage(url: URL) {
   }
   const { data: st } = await db.from("settings").select("*").eq("id", 1).single();
   return json({
-    id: g.id, name: g.name, instagram: g.instagram, ticket: g.ticket, status: g.status,
-    photo: g.show_photo ? photoUrl(g.photo_path) : null,
+    id: g.id, name: g.name, instagram: g.instagram, ticket: g.ticket, status: g.status, amount: g.amount_cents / 100,
+    photo: photoUrl(g.photo_path), // their own page always shows their own photo
     address: g.status === "paid" && st?.address_released ? st.address : null,
   });
 }
@@ -184,7 +205,8 @@ Deno.serve(async (req) => {
   const action = url.searchParams.get("action");
   try {
     if (action === "wall" && req.method === "GET") return await wall();
-    if (action === "checkout" && req.method === "POST") return await checkout(req);
+    if (action === "apply" && req.method === "POST") return await apply(req);
+    if (action === "pay" && req.method === "POST") return await pay(req);
     if (action === "ticket" && req.method === "GET") return await ticketPage(url);
     if (action === "webhook" && req.method === "POST") return await webhook(req);
     if (action === "admin" && req.method === "POST") return await admin(req);
