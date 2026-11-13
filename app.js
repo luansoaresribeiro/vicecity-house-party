@@ -114,8 +114,10 @@
   }
 
   // ---------- counter ----------
+  let spotsLeft = P.capacity;
   function renderCounts(going, held) {
     const left = Math.max(0, P.capacity - going - (held || 0));
+    spotsLeft = left; tickCountdown();
     $("spotsLeft").textContent = left;
     const closed = salesClosed(), soldOut = left <= 0;
     if (closed || soldOut) {
@@ -279,6 +281,19 @@
       }
     } catch (err) { box.textContent = err.message; }
   }
+
+  // ---------- countdown bar: appears by itself Tue 12AM → Wed midnight, only while payments are open ----------
+  const pad = (n) => String(n).padStart(2, "0");
+  function tickCountdown() {
+    const now = Date.now(), end = Date.parse(P.salesClose), start = Date.parse(P.countdownStart || P.salesClose);
+    const show = paymentsOpen && now >= start && now < end && spotsLeft > 0;
+    $("countdown").hidden = !show;
+    if (!show) return;
+    const s = Math.floor((end - now) / 1000), d = Math.floor(s / 86400);
+    $("cdTime").textContent = (d ? d + "d " : "") + `${pad(Math.floor(s % 86400 / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`;
+    $("cdSpots").textContent = spotsLeft;
+  }
+  setInterval(tickCountdown, 1000);
 
   // ---------- boot ----------
   loadWall();
