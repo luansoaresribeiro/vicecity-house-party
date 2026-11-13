@@ -94,7 +94,6 @@
 
   // ---------- counter ----------
   function renderCounts(going, held) {
-    $("goingCount").textContent = going;
     const left = Math.max(0, P.capacity - going - (held || 0));
     $("spotsLeft").textContent = left;
     const closed = salesClosed(), soldOut = left <= 0;
