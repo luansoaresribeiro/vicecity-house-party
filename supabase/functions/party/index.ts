@@ -86,7 +86,10 @@ async function wall() {
     };
   });
   const { data: st } = await db.from("settings").select("crews").eq("id", 1).single();
-  return json({ guests, crews: cleanCrews(st?.crews), paymentsOpen: open, ...(await counts()), capacity: CAPACITY });
+  // people on the list (each @ once, paid or not) — drives "spots left" during the list phase
+  const { data: handles } = await db.from("guests").select("instagram");
+  const listed = new Set((handles ?? []).map((h) => h.instagram)).size;
+  return json({ guests, listed, crews: cleanCrews(st?.crews), paymentsOpen: open, ...(await counts()), capacity: CAPACITY });
 }
 
 const closedMsg = `Online sales are closed. Text or call ${PHONE} to request a ticket.`;

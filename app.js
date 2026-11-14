@@ -56,36 +56,75 @@
   }
 
   // ---------- floating wall ----------
+  // Shows a limited number of bubbles at a time (so they stay big). When more people joined than fit,
+  // bubbles take turns: the one on screen the longest fades out and the next person fades in, so
+  // everyone gets their moment. More people → faster turns and livelier movement.
   const wall = $("wall");
-  const floaters = new Map(); // id -> {el,x,y,vx,vy,s,phase}
+  const floaters = new Map(); // on-screen bubbles: id -> {el,x,y,vx,vy,s,phase,born,leaving}
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const MIN_BUBBLES = 12; // the wall never looks empty: "?" placeholders until 12 real guests
+  let pool = [], queue = [], slotCount = 8, bubbleSize = 76;
 
   function sizeFor(n) {
     const area = wall.clientWidth * wall.clientHeight;
     const s = Math.sqrt(area / Math.max(n, 1) / 3.2);
     return Math.max(46, Math.min(92, s));
   }
-
-  const MIN_BUBBLES = 12; // the wall never looks empty: "?" placeholders until 12 real guests
-  function renderWall(real) {
-    const guests = real.concat(Array.from({ length: Math.max(0, MIN_BUBBLES - real.length) }, (_, i) => ({ id: "filler-" + i, filler: true })));
-    $("wallEmpty").hidden = true;
-    const ids = new Set(guests.map((g) => g.id));
-    for (const [id, f] of floaters) if (!ids.has(id)) { f.el.remove(); floaters.delete(id); }
-    const s = sizeFor(guests.length);
-    const W = wall.clientWidth, H = wall.clientHeight;
-    for (const g of guests) {
-      let f = floaters.get(g.id);
-      if (!f) {
-        const el = bubbleEl(g, false);
-        wall.append(el);
-        const ang = Math.random() * Math.PI * 2, sp = 0.15 + Math.random() * 0.25;
-        f = { el, x: Math.random() * (W - s), y: Math.random() * (H - s - 26), vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, phase: Math.random() * 6 };
-        floaters.set(g.id, f);
-      }
-      f.s = s; f.el.style.setProperty("--s", s + "px");
-    }
+  function slotsFor() {
+    const W = wall.clientWidth, H = wall.clientHeight, s = W < 500 ? 66 : 76;
+    return Math.max(8, Math.min(30, Math.round((W * H) / (s * s * 3.8))));
   }
+  const visible = () => [...floaters.values()].filter((f) => !f.leaving);
+
+  function spawn(g) {
+    const W = wall.clientWidth, H = wall.clientHeight, s = bubbleSize;
+    const el = bubbleEl(g, false);
+    el.classList.add("enter");
+    el.style.setProperty("--s", s + "px");
+    wall.append(el);
+    const ang = Math.random() * Math.PI * 2, sp = 0.15 + Math.random() * 0.25;
+    floaters.set(g.id, { el, s, x: Math.random() * Math.max(1, W - s), y: Math.random() * Math.max(1, H - s - 26),
+      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, phase: Math.random() * 6, born: performance.now(), leaving: false });
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove("enter")));
+  }
+  function retire(id) {
+    const f = floaters.get(id);
+    if (!f || f.leaving) return;
+    f.leaving = true; f.el.classList.add("leave");
+    setTimeout(() => { f.el.remove(); if (floaters.get(id) === f) floaters.delete(id); }, 900);
+  }
+
+  function renderWall(real) {
+    const all = real.concat(Array.from({ length: Math.max(0, MIN_BUBBLES - real.length) }, (_, i) => ({ id: "filler-" + i, filler: true })));
+    $("wallEmpty").hidden = true;
+    const byId = new Map(all.map((g) => [g.id, g]));
+    const known = new Set(pool.map((g) => g.id));
+    pool = all;
+    for (const id of [...floaters.keys()]) if (!byId.has(id)) retire(id);
+    // newcomers jump the line so people see themselves soon after joining
+    const fresh = all.filter((g) => !known.has(g.id) && !floaters.has(g.id)).map((g) => g.id);
+    queue = fresh.concat(queue.filter((id) => byId.has(id) && !floaters.has(id) && !fresh.includes(id)));
+    for (const g of all) if (!floaters.has(g.id) && !queue.includes(g.id)) queue.push(g.id);
+
+    slotCount = slotsFor();
+    bubbleSize = all.length > slotCount ? (wall.clientWidth < 500 ? 66 : 76) : sizeFor(all.length);
+    for (const f of floaters.values()) { f.s = bubbleSize; f.el.style.setProperty("--s", bubbleSize + "px"); }
+    while (visible().length < Math.min(slotCount, all.length) && queue.length) spawn(byId.get(queue.shift()));
+  }
+
+  function rotate() {
+    if (pool.length > slotCount && queue.length) {
+      const out = visible().filter((f) => !f.el.classList.contains("me")).sort((a, b) => a.born - b.born)[0];
+      const outId = out && [...floaters.entries()].find(([, f]) => f === out)[0];
+      if (outId) { retire(outId); queue.push(outId); }
+      const next = pool.find((g) => g.id === queue[0]);
+      queue.shift();
+      if (next) spawn(next);
+    }
+    const ratio = pool.length / Math.max(slotCount, 1);
+    setTimeout(rotate, ratio > 1 ? Math.max(700, 3200 / ratio) : 2500);
+  }
+  if (!reduced) setTimeout(rotate, 2500);
 
   function tick(t) {
     const W = wall.clientWidth, H = wall.clientHeight;
@@ -100,7 +139,8 @@
       }
     }
     for (const f of list) {
-      const sp = Math.hypot(f.vx, f.vy), max = 0.6, minSp = 0.12;
+      const boost = pool.length > slotCount ? Math.min(1.8, 1 + (pool.length / slotCount - 1) * 0.2) : 1;
+      const sp = Math.hypot(f.vx, f.vy), max = 0.6 * boost, minSp = 0.12 * boost;
       if (sp > max) { f.vx *= max / sp; f.vy *= max / sp; }
       else if (sp < minSp) { f.vx *= minSp / (sp || 1); f.vy *= minSp / (sp || 1); }
       const h = f.s + 26;
@@ -115,11 +155,12 @@
 
   // ---------- counter ----------
   let spotsLeft = P.capacity;
-  function renderCounts(going, held) {
-    const left = Math.max(0, P.capacity - going - (held || 0));
+  function renderCounts(d) {
+    const used = paymentsOpen ? (d.going || 0) + (d.held || 0) : (d.listed ?? (d.guests || []).length);
+    const left = Math.max(0, P.capacity - used);
     spotsLeft = left; tickCountdown();
     $("spotsLeft").textContent = left;
-    const closed = salesClosed(), soldOut = left <= 0;
+    const closed = salesClosed(), soldOut = paymentsOpen && left <= 0; // during the list phase nobody is turned away
     if (closed || soldOut) {
       const box = $("closedMsg");
       box.replaceChildren(soldOut ? "Sold out online 🔥" : "Online sales are closed.", document.createElement("br"), "Text or call ");
@@ -135,12 +176,12 @@
     if (PREVIEW) {
       const sample = ["jordan.m", "sofia.rr", "mike_305", "isa.vibes", "dani.fiu", "chris.stu", "val.mia", "leo.dade", "nat.sun", "gabi.linen", "tony.v", "mari.305"];
       const guests = params.has("preview") ? sample.slice(0, 5).map((h) => ({ id: h, instagram: h, name: h.replace(/[._\d]/g, " ") })).concat([{ id: "m1", mystery: true }]) : [];
-      renderWall(guests); renderCounts(0, 0); return;
+      renderWall(guests); renderCounts({ guests }); return;
     }
     try {
       const d = await api("wall");
       applyMode(d.paymentsOpen);
-      renderWall(d.guests); renderCounts(d.going, d.held); renderCrews(d.crews);
+      renderWall(d.guests); renderCounts(d); renderCrews(d.crews);
     } catch { /* keep last state */ }
   }
 
@@ -298,8 +339,8 @@
   // ---------- boot ----------
   loadWall();
   if (!reduced) requestAnimationFrame(tick); else tick(0);
-  if (!PREVIEW) setInterval(loadWall, 20000);
-  addEventListener("resize", () => { const s = sizeFor(floaters.size); floaters.forEach((f) => { f.s = s; f.el.style.setProperty("--s", s + "px"); }); if (reduced) tick(0); });
+  if (!PREVIEW) setInterval(loadWall, 15000);
+  addEventListener("resize", () => { renderWall(pool.filter((g) => !g.filler)); if (reduced) tick(0); });
   const t = params.get("t");
   if (t && !PREVIEW) loadTicket(t);
 })();

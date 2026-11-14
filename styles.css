@@ -113,6 +113,8 @@ body.locked{overflow:hidden}
   border:1px solid var(--line);
   background:radial-gradient(80% 70% at 50% 110%,rgba(0,180,200,.18),transparent 70%),rgba(20,6,31,.55)}
 .wall-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:22px;letter-spacing:.06em}
+.bubble{transition:opacity .85s ease}
+.bubble.enter,.bubble.leave{opacity:0}
 .bubble{position:absolute;left:0;top:0;width:var(--s,84px);display:flex;flex-direction:column;align-items:center;gap:6px;
   text-decoration:none;color:var(--cream);will-change:transform}
 .bubble .face{width:var(--s,84px);height:var(--s,84px);border-radius:50%;overflow:hidden;display:grid;place-items:center;
