@@ -2,7 +2,7 @@
   const $ = (id) => document.getElementById(id);
   let pw = "";
   try { pw = sessionStorage.getItem("adm") || ""; } catch {}
-  let state = null, filter = "paid";
+  let state = null, filter = "all"; // open on everyone, so nobody on the list gets missed
 
   async function call(body = {}) {
     const res = await fetch(`${window.PARTY.api}?action=admin`, {
@@ -25,12 +25,25 @@
     }
   }
 
+  // one row per person: if someone joined twice with the same @, keep their newest entry (paid always wins)
+  function people() {
+    const best = new Map();
+    for (const g of state.guests) { // already newest first
+      const cur = best.get(g.instagram);
+      if (!cur || (g.status === "paid" && cur.status !== "paid")) best.set(g.instagram, g);
+    }
+    return [...best.values()];
+  }
+
   function render() {
-    const paid = state.guests.filter((g) => g.status === "paid");
+    const all = people();
+    const paid = all.filter((g) => g.status === "paid");
+    const waiting = all.filter((g) => g.status !== "paid");
     const ladies = paid.filter((g) => g.ticket === "ladies").length;
     const money = paid.reduce((s, g) => s + g.amount_cents, 0) / 100;
     const inside = paid.filter((g) => g.checked_in).length;
     $("stats").replaceChildren(...[
+      [waiting.length, "on the list"],
       [paid.length + " / " + state.capacity, "paid"],
       [`${ladies} · ${paid.length - ladies}`, "ladies · guys"],
       ["$" + money.toLocaleString("en-US"), "sold online"],
@@ -48,7 +61,9 @@
     $("released").checked = state.settings.address_released;
 
     const q = $("q").value.trim().toLowerCase().replace(/^@/, "");
-    const rows = state.guests.filter((g) =>
+    const n = { all: all.length, pending: waiting.length, paid: paid.length };
+    document.querySelectorAll("[data-f]").forEach((b) => { b.textContent = `${b.dataset.label} (${n[b.dataset.f]})`; });
+    const rows = all.filter((g) =>
       (filter === "all" || g.status === filter) &&
       (!q || g.name.toLowerCase().includes(q) || g.instagram.includes(q) || (g.phone || "").includes(q.replace(/\D/g, "") || "~")));
     $("list").replaceChildren(...rows.map(row));

@@ -13,7 +13,7 @@
 <style>
   .adm{max-width:900px;margin:0 auto;padding:24px 16px 60px;display:grid;gap:20px}
   .adm h1{font-family:"Kaushan Script",cursive;color:var(--pink);font-weight:400;font-size:40px;text-shadow:var(--glow)}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
   .stats div{border:1.5px solid var(--pink);border-radius:12px;padding:10px;background:rgba(255,46,138,.08)}
   .stats b{display:block;font-size:30px;line-height:1}
   .stats span{font-size:12px;letter-spacing:.25em;text-transform:uppercase;color:var(--muted)}
@@ -43,6 +43,7 @@
 <body>
 <div class="sky" aria-hidden="true"></div>
 <main class="adm">
+  <a href="/" class="fine" style="color:var(--muted);text-decoration:none">← Back to the site</a>
   <h1>Organizer</h1>
 
   <form id="login" class="card row">
@@ -80,9 +81,9 @@
 
     <div class="row filters" style="margin-bottom:12px">
       <input type="search" id="q" placeholder="Search name, @ or phone">
-      <button class="mini on" data-f="paid">Paid</button>
-      <button class="mini" data-f="pending">On the list, not paid</button>
-      <button class="mini" data-f="all">All</button>
+      <button class="mini on" data-f="all" data-label="Everyone">Everyone</button>
+      <button class="mini" data-f="pending" data-label="On the list, not paid">On the list, not paid</button>
+      <button class="mini" data-f="paid" data-label="Paid">Paid</button>
     </div>
     <div class="list" id="list"></div>
   </div>
