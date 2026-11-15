@@ -75,9 +75,11 @@ async function wall() {
   const { data, error } = await q;
   if (error) return fail("Couldn't load the guest list.", 500);
   // one bubble per @ (someone may have joined twice) — keep their latest entry, in the original order
-  const latest = new Map(data.map((g) => [g.instagram, g.id]));
-  const guests = data.filter((g) => latest.get(g.instagram) === g.id).map((g) => {
-    if (!g.show_photo || g.hidden) return { id: g.id, mystery: true }; // "?" bubble: no name, no @, no photo
+  // (people imported from Google Forms have no @, so they are keyed by their own id)
+  const key = (g: { instagram: string | null; id: string }) => g.instagram ?? g.id;
+  const latest = new Map(data.map((g) => [key(g), g.id]));
+  const guests = data.filter((g) => latest.get(key(g)) === g.id).map((g) => {
+    if (!g.show_photo || g.hidden || !g.instagram) return { id: g.id, mystery: true }; // "?" bubble: no name, no @, no photo
     const [first, last] = g.name.trim().split(/\s+/);
     return {
       id: g.id, instagram: g.instagram,
@@ -87,8 +89,8 @@ async function wall() {
   });
   const { data: st } = await db.from("settings").select("crews").eq("id", 1).single();
   // people on the list (each @ once, paid or not) — drives "spots left" during the list phase
-  const { data: handles } = await db.from("guests").select("instagram");
-  const listed = new Set((handles ?? []).map((h) => h.instagram)).size;
+  const { data: handles } = await db.from("guests").select("id,instagram");
+  const listed = new Set((handles ?? []).map((h) => h.instagram ?? h.id)).size;
   return json({ guests, listed, crews: cleanCrews(st?.crews), paymentsOpen: open, ...(await counts()), capacity: CAPACITY });
 }
 
@@ -236,7 +238,7 @@ async function admin(req: Request) {
     await db.from("settings").update({ address: String(b.address ?? "").slice(0, 200), address_released: !!b.released }).eq("id", 1);
   }
   const { data: guests } = await db.from("guests")
-    .select("id,name,instagram,school,gender,phone,referrer_name,referrer_school,ticket,amount_cents,status,hidden,checked_in,photo_path,show_photo,created_at,paid_at")
+    .select("id,name,instagram,school,gender,age,source,phone,referrer_name,referrer_school,ticket,amount_cents,status,hidden,checked_in,photo_path,show_photo,created_at,paid_at")
     .order("created_at", { ascending: false });
   const { data: settings } = await db.from("settings").select("*").eq("id", 1).single();
   return json({

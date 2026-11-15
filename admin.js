@@ -29,8 +29,9 @@
   function people() {
     const best = new Map();
     for (const g of state.guests) { // already newest first
-      const cur = best.get(g.instagram);
-      if (!cur || (g.status === "paid" && cur.status !== "paid")) best.set(g.instagram, g);
+      const k = g.instagram || g.id; // Google Forms people have no @
+      const cur = best.get(k);
+      if (!cur || (g.status === "paid" && cur.status !== "paid")) best.set(k, g);
     }
     return [...best.values()];
   }
@@ -70,7 +71,7 @@
     document.querySelectorAll("[data-f]").forEach((b) => { b.textContent = `${b.dataset.label} (${n[b.dataset.f]})`; });
     const rows = all.filter((g) =>
       (filter === "all" || g.status === filter) &&
-      (!q || g.name.toLowerCase().includes(q) || g.instagram.includes(q) || (g.phone || "").includes(q.replace(/\D/g, "") || "~")));
+      (!q || g.name.toLowerCase().includes(q) || (g.instagram || "").includes(q) || (g.phone || "").includes(q.replace(/\D/g, "") || "~")));
     $("list").replaceChildren(...rows.map(row));
     if (!rows.length) { const p = document.createElement("p"); p.className = "fine"; p.textContent = "Nobody here yet."; $("list").append(p); }
   }
@@ -86,7 +87,7 @@
     const b = document.createElement("b"); b.textContent = g.name;
     const sm = document.createElement("small");
     const sex = g.gender === "female" ? "Female" : g.gender === "male" ? "Male" : "";
-    sm.textContent = `@${g.instagram} · ${g.school}${sex ? " · " + sex : ""} · ${g.ticket === "ladies" ? "Ladies $20" : "Guys $40"}${g.phone ? " · " + g.phone : ""}${g.referrer_name ? ` · invited by ${g.referrer_name} (${g.referrer_school})` : ""}${g.status === "paid" && !g.show_photo ? " · mystery on wall" : ""}`;
+    sm.textContent = `${g.instagram ? "@" + g.instagram : "no @"} · ${g.school}${g.age ? " · " + g.age + (g.age < 21 ? " (under 21)" : "") : ""}${sex ? " · " + sex : ""} · ${g.ticket === "ladies" ? "Ladies $20" : "Guys $40"}${g.phone ? " · " + g.phone : ""}${g.referrer_name ? ` · invited by ${g.referrer_name} (${g.referrer_school})` : ""}${g.status === "paid" && !g.show_photo ? " · mystery on wall" : ""}`;
     const tag = document.createElement("span"); tag.className = "tag " + g.status; tag.textContent = g.status === "paid" ? "paid" : "on the list · not paid";
     who.append(b, " ", tag, sm);
 
@@ -95,9 +96,12 @@
       acts.append(btn(g.checked_in ? "✓ Inside" : "Check in", g.checked_in, () => load({ op: "checkin", id: g.id, value: !g.checked_in })));
       acts.append(btn(g.hidden ? "Shown as ?" : "Show as ? on wall", g.hidden, () => load({ op: "hide", id: g.id, value: !g.hidden })));
     }
-    const ig = document.createElement("a"); ig.className = "mini"; ig.textContent = "Instagram"; ig.target = "_blank"; ig.rel = "noopener";
-    ig.href = "https://instagram.com/" + encodeURIComponent(g.instagram); ig.style.textDecoration = "none";
-    acts.append(ig);
+    if (g.instagram) {
+      const ig = document.createElement("a"); ig.className = "mini"; ig.textContent = "Instagram"; ig.target = "_blank"; ig.rel = "noopener";
+      ig.href = "https://instagram.com/" + encodeURIComponent(g.instagram); ig.style.textDecoration = "none";
+      acts.append(ig);
+    }
+    if (g.source === "google_forms") { const t = document.createElement("span"); t.className = "tag"; t.textContent = "Google Forms"; who.append(" ", t); }
     if (g.phone) {
       const tx = document.createElement("a"); tx.className = "mini"; tx.textContent = "Text"; tx.style.textDecoration = "none";
       tx.href = "sms:" + g.phone; acts.append(tx);
