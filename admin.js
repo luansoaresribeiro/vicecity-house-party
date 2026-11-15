@@ -42,10 +42,15 @@
     const ladies = paid.filter((g) => g.ticket === "ladies").length;
     const money = paid.reduce((s, g) => s + g.amount_cents, 0) / 100;
     const inside = paid.filter((g) => g.checked_in).length;
+    // everyone who joined (paid or not), split by gender — like the Google Forms summary
+    const women = all.filter((g) => g.gender === "female").length, men = all.filter((g) => g.gender === "male").length;
+    const unknown = all.length - women - men;
+    const pct = (n) => (all.length ? Math.round((n / all.length) * 100) : 0);
     $("stats").replaceChildren(...[
-      [waiting.length, "on the list"],
+      [all.length, "joined the list"],
+      [`${women} · ${men}`, `women · men (${pct(women)}% · ${pct(men)}%)${unknown ? ` · ${unknown} unknown` : ""}`],
       [paid.length + " / " + state.capacity, "paid"],
-      [`${ladies} · ${paid.length - ladies}`, "ladies · guys"],
+      [`${ladies} · ${paid.length - ladies}`, "paid ladies · guys"],
       ["$" + money.toLocaleString("en-US"), "sold online"],
       [inside, "checked in"],
     ].map(([b, s]) => { const d = document.createElement("div"); d.innerHTML = "<b></b><span></span>"; d.children[0].textContent = b; d.children[1].textContent = s; return d; }));
