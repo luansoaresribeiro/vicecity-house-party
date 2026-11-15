@@ -84,7 +84,8 @@
     wall.append(el);
     const ang = Math.random() * Math.PI * 2, sp = 0.15 + Math.random() * 0.25;
     floaters.set(g.id, { el, s, x: Math.random() * Math.max(1, W - s), y: Math.random() * Math.max(1, H - s - 26),
-      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, phase: Math.random() * 6, born: performance.now(), leaving: false });
+      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, phase: Math.random() * 6, born: performance.now(), leaving: false,
+      named: !g.mystery && !g.filler });
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove("enter")));
   }
   function retire(id) {
@@ -105,6 +106,8 @@
     const fresh = all.filter((g) => !known.has(g.id) && !floaters.has(g.id)).map((g) => g.id);
     queue = fresh.concat(queue.filter((id) => byId.has(id) && !floaters.has(id) && !fresh.includes(id)));
     for (const g of all) if (!floaters.has(g.id) && !queue.includes(g.id)) queue.push(g.id);
+    const isNamed = (id) => { const g = byId.get(id); return g && !g.mystery && !g.filler; };
+    queue = queue.filter(isNamed).concat(queue.filter((id) => !isNamed(id))); // people with a name first
 
     slotCount = slotsFor();
     bubbleSize = all.length > slotCount ? (wall.clientWidth < 500 ? 66 : 76) : sizeFor(all.length);
@@ -114,7 +117,8 @@
 
   function rotate() {
     if (pool.length > slotCount && queue.length) {
-      const out = visible().filter((f) => !f.el.classList.contains("me")).sort((a, b) => a.born - b.born)[0];
+      const pinNamed = pool.filter((g) => !g.mystery && !g.filler).length <= slotCount * 0.6;
+      const out = visible().filter((f) => !f.el.classList.contains("me") && !(pinNamed && f.named)).sort((a, b) => a.born - b.born)[0];
       const outId = out && [...floaters.entries()].find(([, f]) => f === out)[0];
       if (outId) { retire(outId); queue.push(outId); }
       const next = pool.find((g) => g.id === queue[0]);
@@ -159,7 +163,7 @@
     const used = paymentsOpen ? (d.going || 0) + (d.held || 0) : (d.listed ?? (d.guests || []).length);
     const left = Math.max(0, P.capacity - used);
     spotsLeft = left; tickCountdown();
-    $("spotsLeft").textContent = left;
+    $("spotsLeft").textContent = left > 0 ? "Few" : "0"; // owner's choice: show urgency, not the exact number
     const closed = salesClosed(), soldOut = paymentsOpen && left <= 0; // during the list phase nobody is turned away
     if (closed || soldOut) {
       const box = $("closedMsg");
@@ -332,7 +336,7 @@
     if (!show) return;
     const s = Math.floor((end - now) / 1000), d = Math.floor(s / 86400);
     $("cdTime").textContent = (d ? d + "d " : "") + `${pad(Math.floor(s % 86400 / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`;
-    $("cdSpots").textContent = spotsLeft;
+    $("cdSpots").textContent = spotsLeft > 0 ? "Few" : "0";
   }
   setInterval(tickCountdown, 1000);
 
