@@ -39,10 +39,10 @@
       if (g.mystery) { const h = document.createElement("span"); h.className = "handle"; h.textContent = "Mystery guest"; m.append(h); }
       return m;
     }
-    const a = document.createElement("a");
+    // guests without an @ (from Google Forms) show their short name and don't link anywhere
+    const a = document.createElement(g.instagram ? "a" : "span");
     a.className = "bubble" + (me ? " me" : "");
-    a.href = `https://instagram.com/${encodeURIComponent(g.instagram)}`;
-    a.target = "_blank"; a.rel = "noopener";
+    if (g.instagram) { a.href = `https://instagram.com/${encodeURIComponent(g.instagram)}`; a.target = "_blank"; a.rel = "noopener"; }
     a.setAttribute("role", "listitem");
     a.title = g.name;
     const face = document.createElement("span");
@@ -50,7 +50,7 @@
     if (g.photo) { const img = document.createElement("img"); img.src = g.photo; img.alt = ""; img.loading = "lazy"; face.append(img); }
     else face.textContent = initials(g.name || g.instagram);
     const h = document.createElement("span");
-    h.className = "handle"; h.textContent = "@" + g.instagram;
+    h.className = "handle"; h.textContent = g.instagram ? "@" + g.instagram : g.name;
     a.append(face, h);
     return a;
   }

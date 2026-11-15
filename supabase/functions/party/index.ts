@@ -70,7 +70,7 @@ async function paymentsOpen() {
 // List phase (payments closed): everyone who joined the list shows up. Once payments open: only paid guests.
 async function wall() {
   const open = await paymentsOpen();
-  let q = db.from("guests").select("id,name,instagram,photo_path,show_photo,hidden");
+  let q = db.from("guests").select("id,name,instagram,photo_path,show_photo,hidden,source");
   q = open ? q.eq("status", "paid").order("paid_at", { ascending: true }) : q.order("created_at", { ascending: true });
   const { data, error } = await q;
   if (error) return fail("Couldn't load the guest list.", 500);
@@ -79,13 +79,14 @@ async function wall() {
   const key = (g: { instagram: string | null; id: string }) => g.instagram ?? g.id;
   const latest = new Map(data.map((g) => [key(g), g.id]));
   const guests = data.filter((g) => latest.get(key(g)) === g.id).map((g) => {
-    if (!g.show_photo || g.hidden || !g.instagram) return { id: g.id, mystery: true }; // "?" bubble: no name, no @, no photo
+    const fromForms = g.source === "google_forms";
+    // "?" bubble: hidden by the organizer, or a site guest who unticked "show me on the wall"
+    if (g.hidden || (!fromForms && (!g.show_photo || !g.instagram))) return { id: g.id, mystery: true };
     const [first, last] = g.name.trim().split(/\s+/);
-    return {
-      id: g.id, instagram: g.instagram,
-      name: last ? `${first} ${last[0]}.` : first, // never expose full last names publicly
-      photo: photoUrl(g.photo_path),
-    };
+    const name = last ? `${first} ${last[0]}.` : first; // never expose full last names publicly
+    // Google Forms guests (owner's choice): first name + last initial only — no @, no photo
+    if (fromForms) return { id: g.id, instagram: null, name, photo: null };
+    return { id: g.id, instagram: g.instagram, name, photo: photoUrl(g.photo_path) };
   });
   const { data: st } = await db.from("settings").select("crews").eq("id", 1).single();
   // people on the list (each @ once, paid or not) — drives "spots left" during the list phase
