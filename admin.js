@@ -87,7 +87,7 @@
     const b = document.createElement("b"); b.textContent = g.name;
     const sm = document.createElement("small");
     const sex = g.gender === "female" ? "Female" : g.gender === "male" ? "Male" : "";
-    sm.textContent = `${g.instagram ? "@" + g.instagram : "no @"} · ${g.school}${g.age ? " · " + g.age + (g.age < 21 ? " (under 21)" : "") : ""}${sex ? " · " + sex : ""} · ${g.ticket === "ladies" ? "Ladies $20" : "Guys $40"}${g.phone ? " · " + g.phone : ""}${g.referrer_name ? ` · invited by ${g.referrer_name} (${g.referrer_school})` : ""}${g.status === "paid" && !g.show_photo ? " · mystery on wall" : ""}`;
+    sm.textContent = `${g.instagram ? "@" + g.instagram : "no @"} · ${g.school}${sex ? " · " + sex : ""} · ${g.ticket === "ladies" ? "Ladies $20" : "Guys $40"}${g.phone ? " · " + g.phone : ""}${g.referrer_name ? ` · invited by ${g.referrer_name} (${g.referrer_school})` : ""}${g.status === "paid" && !g.show_photo ? " · mystery on wall" : ""}`;
     const tag = document.createElement("span"); tag.className = "tag " + g.status; tag.textContent = g.status === "paid" ? "paid" : "on the list · not paid";
     who.append(b, " ", tag, sm);
 

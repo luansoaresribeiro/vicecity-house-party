@@ -238,7 +238,7 @@ async function admin(req: Request) {
     await db.from("settings").update({ address: String(b.address ?? "").slice(0, 200), address_released: !!b.released }).eq("id", 1);
   }
   const { data: guests } = await db.from("guests")
-    .select("id,name,instagram,school,gender,age,source,phone,referrer_name,referrer_school,ticket,amount_cents,status,hidden,checked_in,photo_path,show_photo,created_at,paid_at")
+    .select("id,name,instagram,school,gender,source,phone,referrer_name,referrer_school,ticket,amount_cents,status,hidden,checked_in,photo_path,show_photo,created_at,paid_at")
     .order("created_at", { ascending: false });
   const { data: settings } = await db.from("settings").select("*").eq("id", 1).single();
   return json({
