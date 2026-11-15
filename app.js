@@ -56,14 +56,19 @@
   }
 
   // ---------- floating wall ----------
-  // Shows a limited number of bubbles at a time (so they stay big). When more people joined than fit,
-  // bubbles take turns: the one on screen the longest fades out and the next person fades in, so
-  // everyone gets their moment. More people → faster turns and livelier movement.
+  // Calm wall that people can actually read:
+  //  • real people (name + @) always come first; "?" bubbles are capped at a few, just for curiosity
+  //  • when more people joined than fit, each bubble gets ~5.5 s on screen, then the next one takes its place
+  //  • if everyone with a name fits, they stay put and only the "?" bubbles take turns
   const wall = $("wall");
-  const floaters = new Map(); // on-screen bubbles: id -> {el,x,y,vx,vy,s,phase,born,leaving}
+  const floaters = new Map(); // on-screen bubbles: id -> {el,x,y,vx,vy,s,phase,born,leaving,named}
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const MIN_BUBBLES = 12; // the wall never looks empty: "?" placeholders until 12 real guests
-  let pool = [], queue = [], slotCount = 8, bubbleSize = 76;
+  const LIFE = 5500;      // ms each bubble stays when someone else is waiting
+  const MAX_MYSTERY = 3;  // "?" bubbles on screen at most
+  const MIN_BUBBLES = 6;  // "?" placeholders only while the list is tiny
+  let pool = [], byId = new Map(), namedQ = [], mysteryQ = [], slotCount = 8, bubbleSize = 76;
+  let namedSlots = 0, mysterySlots = 0;
+  const isNamed = (g) => g && !g.mystery && !g.filler;
 
   function sizeFor(n) {
     const area = wall.clientWidth * wall.clientHeight;
@@ -72,20 +77,21 @@
   }
   function slotsFor() {
     const W = wall.clientWidth, H = wall.clientHeight, s = W < 500 ? 66 : 76;
-    return Math.max(8, Math.min(30, Math.round((W * H) / (s * s * 3.8))));
+    return Math.max(6, Math.min(24, Math.round((W * H) / (s * s * 4.2))));
   }
-  const visible = () => [...floaters.values()].filter((f) => !f.leaving);
+  const visible = (named) => [...floaters.values()].filter((f) => !f.leaving && (named === undefined || f.named === named));
 
-  function spawn(g) {
+  function spawn(g, stagger) {
+    if (!g || floaters.has(g.id)) return;
     const W = wall.clientWidth, H = wall.clientHeight, s = bubbleSize;
     const el = bubbleEl(g, false);
     el.classList.add("enter");
     el.style.setProperty("--s", s + "px");
     wall.append(el);
-    const ang = Math.random() * Math.PI * 2, sp = 0.15 + Math.random() * 0.25;
+    const ang = Math.random() * Math.PI * 2, sp = 0.06 + Math.random() * 0.06;
     floaters.set(g.id, { el, s, x: Math.random() * Math.max(1, W - s), y: Math.random() * Math.max(1, H - s - 26),
-      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, phase: Math.random() * 6, born: performance.now(), leaving: false,
-      named: !g.mystery && !g.filler });
+      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, phase: Math.random() * 6, leaving: false, named: isNamed(g),
+      born: performance.now() - (stagger ? Math.random() * LIFE : 0) }); // first batch: staggered so they don't all swap at once
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove("enter")));
   }
   function retire(id) {
@@ -94,41 +100,51 @@
     f.leaving = true; f.el.classList.add("leave");
     setTimeout(() => { f.el.remove(); if (floaters.get(id) === f) floaters.delete(id); }, 900);
   }
+  function fill(stagger) {
+    while (visible(true).length < namedSlots && namedQ.length) spawn(byId.get(namedQ.shift()), stagger);
+    while (visible(false).length < mysterySlots && mysteryQ.length) spawn(byId.get(mysteryQ.shift()), stagger);
+  }
 
   function renderWall(real) {
     const all = real.concat(Array.from({ length: Math.max(0, MIN_BUBBLES - real.length) }, (_, i) => ({ id: "filler-" + i, filler: true })));
     $("wallEmpty").hidden = true;
-    const byId = new Map(all.map((g) => [g.id, g]));
     const known = new Set(pool.map((g) => g.id));
+    byId = new Map(all.map((g) => [g.id, g]));
     pool = all;
     for (const id of [...floaters.keys()]) if (!byId.has(id)) retire(id);
+    const waiting = (q) => q.filter((id) => byId.has(id) && !floaters.has(id));
+    const fresh = all.filter((g) => !known.has(g.id) && !floaters.has(g.id));
     // newcomers jump the line so people see themselves soon after joining
-    const fresh = all.filter((g) => !known.has(g.id) && !floaters.has(g.id)).map((g) => g.id);
-    queue = fresh.concat(queue.filter((id) => byId.has(id) && !floaters.has(id) && !fresh.includes(id)));
-    for (const g of all) if (!floaters.has(g.id) && !queue.includes(g.id)) queue.push(g.id);
-    const isNamed = (id) => { const g = byId.get(id); return g && !g.mystery && !g.filler; };
-    queue = queue.filter(isNamed).concat(queue.filter((id) => !isNamed(id))); // people with a name first
+    namedQ = fresh.filter(isNamed).map((g) => g.id).concat(waiting(namedQ));
+    mysteryQ = waiting(mysteryQ).concat(fresh.filter((g) => !isNamed(g)).map((g) => g.id));
+    for (const g of all) {
+      const q = isNamed(g) ? namedQ : mysteryQ;
+      if (!floaters.has(g.id) && !q.includes(g.id)) q.push(g.id);
+    }
 
     slotCount = slotsFor();
-    bubbleSize = all.length > slotCount ? (wall.clientWidth < 500 ? 66 : 76) : sizeFor(all.length);
+    const namedCount = all.filter(isNamed).length, mysteryCount = all.length - namedCount;
+    mysterySlots = Math.min(mysteryCount, MAX_MYSTERY, Math.max(mysteryCount ? 1 : 0, slotCount - namedCount));
+    namedSlots = Math.min(namedCount, slotCount - mysterySlots);
+    bubbleSize = Math.min(wall.clientWidth < 500 ? 72 : 84, sizeFor(namedSlots + mysterySlots));
     for (const f of floaters.values()) { f.s = bubbleSize; f.el.style.setProperty("--s", bubbleSize + "px"); }
-    while (visible().length < Math.min(slotCount, all.length) && queue.length) spawn(byId.get(queue.shift()));
+    fill(!known.size);
   }
 
+  // every half second: bubbles whose turn is over make room for whoever is waiting (one swap per kind at a time)
   function rotate() {
-    if (pool.length > slotCount && queue.length) {
-      const pinNamed = pool.filter((g) => !g.mystery && !g.filler).length <= slotCount * 0.6;
-      const out = visible().filter((f) => !f.el.classList.contains("me") && !(pinNamed && f.named)).sort((a, b) => a.born - b.born)[0];
-      const outId = out && [...floaters.entries()].find(([, f]) => f === out)[0];
-      if (outId) { retire(outId); queue.push(outId); }
-      const next = pool.find((g) => g.id === queue[0]);
-      queue.shift();
-      if (next) spawn(next);
+    const now = performance.now();
+    for (const [named, q] of [[true, namedQ], [false, mysteryQ]]) {
+      if (!q.length) continue;
+      const due = [...floaters.entries()]
+        .filter(([, f]) => !f.leaving && f.named === named && !f.el.classList.contains("me") && now - f.born > LIFE)
+        .sort((a, b) => a[1].born - b[1].born)[0];
+      if (due) { retire(due[0]); q.push(due[0]); spawn(byId.get(q.shift())); }
     }
-    const ratio = pool.length / Math.max(slotCount, 1);
-    setTimeout(rotate, ratio > 1 ? Math.max(700, 3200 / ratio) : 2500);
+    fill(false);
+    setTimeout(rotate, 500);
   }
-  if (!reduced) setTimeout(rotate, 2500);
+  if (!reduced) setTimeout(rotate, 1000);
 
   function tick(t) {
     const W = wall.clientWidth, H = wall.clientHeight;
@@ -138,20 +154,19 @@
       const p = list[i], q = list[j];
       const dx = q.x - p.x, dy = q.y - p.y, dist = Math.hypot(dx, dy) || 1, min = p.s * 1.25;
       if (dist < min) {
-        const push = (min - dist) / dist * 0.04;
+        const push = (min - dist) / dist * 0.015;
         p.vx -= dx * push; p.vy -= dy * push; q.vx += dx * push; q.vy += dy * push;
       }
     }
     for (const f of list) {
-      const boost = pool.length > slotCount ? Math.min(1.8, 1 + (pool.length / slotCount - 1) * 0.2) : 1;
-      const sp = Math.hypot(f.vx, f.vy), max = 0.6 * boost, minSp = 0.12 * boost;
+      const sp = Math.hypot(f.vx, f.vy), max = 0.2, minSp = 0.05; // slow, readable drift
       if (sp > max) { f.vx *= max / sp; f.vy *= max / sp; }
       else if (sp < minSp) { f.vx *= minSp / (sp || 1); f.vy *= minSp / (sp || 1); }
       const h = f.s + 26;
       f.x += f.vx; f.y += f.vy;
       if (f.x < 0 || f.x > W - f.s) { f.vx *= -1; f.x = Math.max(0, Math.min(W - f.s, f.x)); }
       if (f.y < 0 || f.y > H - h) { f.vy *= -1; f.y = Math.max(0, Math.min(H - h, f.y)); }
-      const bob = Math.sin(t / 900 + f.phase) * 4;
+      const bob = Math.sin(t / 1400 + f.phase) * 2.5;
       f.el.style.transform = `translate(${f.x}px,${f.y + bob}px)`;
     }
     if (!reduced) requestAnimationFrame(tick);
