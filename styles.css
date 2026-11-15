@@ -47,8 +47,12 @@ main{max-width:1100px;margin:0 auto;padding:0 16px}
 
 .counter{display:flex;gap:12px;margin-bottom:22px;max-width:320px}
 .counter div{flex:1;border:1.5px solid var(--pink);border-radius:12px;padding:10px 14px;background:rgba(255,46,138,.08)}
-.counter b{display:block;font-size:40px;line-height:1;font-weight:700}
-.counter span{letter-spacing:.3em;text-transform:uppercase;font-size:13px;color:var(--muted)}
+.counter div{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;padding:12px 16px;animation:spotsGlow 2.4s ease-in-out infinite}
+/* "FEW" in the site's pink, "SPOTS LEFT" big and bright — urgency without changing the box */
+.counter b{display:block;font-size:44px;line-height:1;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--pink);text-shadow:var(--glow)}
+.counter span{letter-spacing:.14em;text-transform:uppercase;font-size:30px;line-height:1.05;font-weight:700;color:var(--cream)}
+@keyframes spotsGlow{0%,100%{box-shadow:0 0 0 rgba(255,46,138,0)}50%{box-shadow:0 0 22px rgba(255,46,138,.45)}}
+@media (prefers-reduced-motion:reduce){.counter div{animation:none}}
 
 .btn{display:inline-block;text-decoration:none;text-align:center;cursor:pointer;
   background:var(--pink);color:#fff;border:0;border-radius:999px;padding:14px 34px;
