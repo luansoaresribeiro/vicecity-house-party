@@ -90,6 +90,10 @@ body.locked{overflow:hidden}
 .splash-title{font-family:"Kaushan Script",cursive;font-size:clamp(64px,18vw,120px);line-height:.95;color:var(--cream);text-shadow:0 4px 30px rgba(0,0,0,.6)}
 .splash .script{margin:0 0 22px;font-size:clamp(40px,11vw,64px)}
 .splash .btn{animation:pulse 1.8s ease-in-out infinite}
+.splash-ask{letter-spacing:.3em;text-transform:uppercase;font-size:14px;color:var(--muted);margin-top:-8px}
+.splash-pick{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;width:100%;max-width:420px}
+.splash-pick .btn{flex:1;min-width:150px;padding:16px 18px}
+.prices.solo{grid-template-columns:repeat(2,1fr);max-width:420px}
 @keyframes pulse{0%,100%{box-shadow:var(--glow)}50%{box-shadow:0 0 28px rgba(255,46,138,.9),0 0 70px rgba(255,46,138,.45)}}
 
 /* small "now playing" label + play/pause circle */

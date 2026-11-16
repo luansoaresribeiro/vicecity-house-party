@@ -63,9 +63,7 @@
     document.body.classList.remove("locked");
     setTimeout(() => { splash.hidden = true; }, 600);
   }
-  splash.addEventListener("click", enter);
-  splash.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); enter(); } });
-  $("enterBtn").focus({ preventScroll: true });
+  splash.addEventListener("click", (e) => { if (e.target.closest("[data-gender]")) enter(); });
   btn.addEventListener("click", () => (playing ? pause() : play()));
 
   // the label collapses once people scroll, so it never covers the form

@@ -29,7 +29,11 @@
     <p class="splash-top">College House Party</p>
     <p class="splash-title">Vice City</p>
     <p class="script">After Dark</p>
-    <button class="btn" id="enterBtn" type="button">Tap to enter 🌴</button>
+    <p class="splash-ask">Tap to enter 🌴</p>
+    <div class="splash-pick">
+      <button class="btn" id="enterBtn" type="button" data-gender="male">I'm a guy</button>
+      <button class="btn" type="button" data-gender="female">I'm a girl</button>
+    </div>
     <p class="fine">🔊 Sound on</p>
   </div>
 </div>
@@ -82,8 +86,8 @@
     <h2 id="ticketsTitle" class="eyebrow">Tickets</h2>
 
     <div class="prices">
-      <div class="price"><span>Ladies</span><b>$20</b></div>
-      <div class="price"><span>Guys</span><b>$40</b></div>
+      <div class="price" data-ticket="female"><span>Ladies</span><b>$20</b></div>
+      <div class="price" data-ticket="male"><span>Guys</span><b>$40</b></div>
       <div class="price door"><span>At the door</span><b>$70</b></div>
     </div>
 

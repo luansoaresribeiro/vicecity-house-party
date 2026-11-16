@@ -3,6 +3,30 @@
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   const PREVIEW = !P.api;
+  // Guy / Girl picked on the entry screen: shows their own price and the opposite gender first on the wall
+  let viewer = null; // "male" | "female" | null
+  let lastGuests = [];
+  function tailor(list) {
+    if (!viewer) return list;
+    const opp = viewer === "male" ? "female" : "male";
+    const named = (g) => !g.mystery && !g.filler;
+    const theirs = list.filter((g) => g.gender === opp);
+    if (theirs.filter(named).length >= 6) return theirs.concat(list.filter((g) => g.mystery && g.gender !== opp));
+    return theirs.concat(list.filter((g) => g.gender !== opp)); // not enough yet: opposite gender first, then everyone else
+  }
+  function choose(gender) {
+    viewer = gender === "female" ? "female" : "male";
+    try { localStorage.setItem("afterdark-gender", viewer); } catch {}
+    // price: show only theirs (+ the door price)
+    document.querySelectorAll(".prices .price[data-ticket]").forEach((c) => { c.hidden = c.dataset.ticket !== viewer; });
+    document.querySelector(".prices").classList.add("solo");
+    // form: preselect their gender (they can still change it if they tapped the wrong one)
+    const r = document.querySelector(`input[name=gender][value=${viewer}]`);
+    if (r && !document.querySelector("input[name=gender]:checked")) { r.checked = true; r.dispatchEvent(new Event("change")); }
+    $("wallTitle").textContent = viewer === "male" ? "Girls pulling up 👀" : "Guys pulling up 👀";
+    renderWall(tailor(lastGuests));
+  }
+  document.querySelectorAll("[data-gender]").forEach((b) => b.addEventListener("click", () => choose(b.dataset.gender)));
   let paymentsOpen = false; // organizer flips this in /admin; until then the form is a "Join the list"
   const submitLabel = () => (paymentsOpen ? "Apply" : "Join the list");
   function applyMode(open) {
@@ -195,12 +219,12 @@
     if (PREVIEW) {
       const sample = ["jordan.m", "sofia.rr", "mike_305", "isa.vibes", "dani.fiu", "chris.stu", "val.mia", "leo.dade", "nat.sun", "gabi.linen", "tony.v", "mari.305"];
       const guests = params.has("preview") ? sample.slice(0, 5).map((h) => ({ id: h, instagram: h, name: h.replace(/[._\d]/g, " ") })).concat([{ id: "m1", mystery: true }]) : [];
-      renderWall(guests); renderCounts({ guests }); return;
+      lastGuests = guests; renderWall(tailor(guests)); renderCounts({ guests }); return;
     }
     try {
       const d = await api("wall");
       applyMode(d.paymentsOpen);
-      renderWall(d.guests); renderCounts(d); renderCrews(d.crews);
+      lastGuests = d.guests; renderWall(tailor(d.guests)); renderCounts(d); renderCrews(d.crews);
     } catch { /* keep last state */ }
   }
 
@@ -359,7 +383,7 @@
   loadWall();
   if (!reduced) requestAnimationFrame(tick); else tick(0);
   if (!PREVIEW) setInterval(loadWall, 15000);
-  addEventListener("resize", () => { renderWall(pool.filter((g) => !g.filler)); if (reduced) tick(0); });
+  addEventListener("resize", () => { renderWall(tailor(lastGuests)); if (reduced) tick(0); });
   const t = params.get("t");
   if (t && !PREVIEW) loadTicket(t);
 })();
