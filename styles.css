@@ -122,8 +122,8 @@ body.locked{overflow:hidden}
 @keyframes pulse{0%,100%{box-shadow:var(--glow)}50%{box-shadow:0 0 28px rgba(255,46,138,.9),0 0 70px rgba(255,46,138,.45)}}
 
 /* small "now playing" label + play/pause circle */
-/* sits above the Netlify badge (bottom-right, ~64px tall), which would otherwise swallow taps */
-.music{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:20;display:flex;align-items:center;gap:8px;pointer-events:none}
+/* hugs the bottom-right corner (the site moved to Vercel, which has no badge there) */
+.music{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:20;display:flex;align-items:center;gap:8px;pointer-events:none}
 .music .music-btn{pointer-events:auto}
 .music-title{font-size:12px;letter-spacing:.08em;color:var(--cream);background:rgba(18,5,28,.82);border:1px solid rgba(255,46,138,.45);
   border-radius:999px;padding:5px 10px;max-width:58vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(8px);transition:opacity .25s}
