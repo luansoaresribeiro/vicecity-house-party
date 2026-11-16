@@ -3,6 +3,8 @@
   let pw = "";
   try { pw = sessionStorage.getItem("adm") || ""; } catch {}
   let state = null, filter = "review"; // opens on the requests waiting for approval
+  let schoolFilter = "all"; // all · stu (green) · fiu (blue) · other = invited (white)
+  const schoolKey = (school) => (school === "St. Thomas" ? "stu" : school === "FIU" ? "fiu" : "other");
 
   async function call(body = {}) {
     const res = await fetch(`${window.PARTY.api}?action=admin`, {
@@ -37,7 +39,7 @@
   }
 
   const SCHOOLS = [["St. Thomas", "STU"], ["FIU", "FIU"], ["UM", "UM"], ["Other", "Other"]];
-  // colored dot per school: STU green · FIU blue · everyone else (invited / Other) amber
+  // colored dot per school: STU green · FIU blue · everyone else (invited / Other) white
   function dot(school) { const i = document.createElement("i"); i.className = "dot " + (school === "St. Thomas" ? "stu" : school === "FIU" ? "fiu" : "other"); return i; }
   function cell(n, of) { const td = document.createElement("td"); td.textContent = n; if (of) { const s = document.createElement("small"); s.textContent = ` ${Math.round((n / of) * 100)}%`; td.append(s); } return td; }
   function renderMix(approved, review) {
@@ -121,8 +123,13 @@
     document.querySelectorAll("[data-f]").forEach((b) => { b.textContent = `${b.dataset.label} (${n[b.dataset.f]})`; });
     const inFilter = { review: (g) => g.approval === "pending", list: (g) => g.approval === "approved" && g.status !== "paid",
       paid: (g) => g.status === "paid", declined: (g) => g.approval === "declined", all: () => true }[filter];
+    // school chips show how many match the current status filter
+    document.querySelectorAll("[data-s]").forEach((b) => {
+      const n = everyone.filter((g) => inFilter(g) && (b.dataset.s === "all" || schoolKey(g.school) === b.dataset.s)).length;
+      const dotEl = b.querySelector(".dot"); b.replaceChildren(...(dotEl ? [dotEl] : []), `${b.dataset.label} (${n})`);
+    });
     const rows = everyone.filter((g) =>
-      inFilter(g) &&
+      inFilter(g) && (schoolFilter === "all" || schoolKey(g.school) === schoolFilter) &&
       (!q || g.name.toLowerCase().includes(q) || (g.instagram || "").includes(q) || (g.phone || "").includes(q.replace(/\D/g, "") || "~")));
     $("list").replaceChildren(...rows.map(row));
     if (!rows.length) { const p = document.createElement("p"); p.className = "fine"; p.textContent = "Nobody here yet."; $("list").append(p); }
@@ -202,6 +209,9 @@
     $("saveCrews").textContent = "Saved ✓"; setTimeout(() => ($("saveCrews").textContent = "Save crews"), 1500);
   });
   $("q").addEventListener("input", () => state && render());
+  document.querySelectorAll("[data-s]").forEach((b) => b.addEventListener("click", () => {
+    schoolFilter = b.dataset.s; document.querySelectorAll("[data-s]").forEach((x) => x.classList.toggle("on", x === b)); render();
+  }));
   document.querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", () => {
     filter = b.dataset.f; document.querySelectorAll("[data-f]").forEach((x) => x.classList.toggle("on", x === b)); render();
   }));

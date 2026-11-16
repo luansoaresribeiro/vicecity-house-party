@@ -37,8 +37,9 @@
   .dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:7px;vertical-align:middle;box-shadow:0 0 6px currentColor}
   .dot.stu{background:#22c55e;color:#22c55e}
   .dot.fiu{background:#3b82f6;color:#3b82f6}
-  .dot.other{background:#f59e0b;color:#f59e0b}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:0 0 10px}
+  .dot.other{background:#f4f4f5;color:#f4f4f5}
+  .legend{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+  .legend .mini{display:inline-flex;align-items:center}
   .bar{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin:6px 0;font-size:17px}
   .bar i{display:block;height:8px;border-radius:99px;background:var(--pink);grid-column:1/-1}
   .tag.review{border-color:#f3d27a;color:#f3d27a}
@@ -112,7 +113,12 @@
       <button class="btn" type="submit" id="saveCrews">Save crews</button>
     </form>
 
-    <div class="legend"><span><i class="dot stu"></i>St. Thomas</span><span><i class="dot fiu"></i>FIU</span><span><i class="dot other"></i>Other (invited)</span></div>
+    <div class="legend" role="group" aria-label="Filter by school">
+      <button type="button" class="mini on" data-s="all" data-label="All schools">All schools</button>
+      <button type="button" class="mini" data-s="stu" data-label="St. Thomas"><i class="dot stu"></i>St. Thomas</button>
+      <button type="button" class="mini" data-s="fiu" data-label="FIU"><i class="dot fiu"></i>FIU</button>
+      <button type="button" class="mini" data-s="other" data-label="Invited (other)"><i class="dot other"></i>Invited (other)</button>
+    </div>
     <div class="row filters" style="margin-bottom:12px">
       <input type="search" id="q" placeholder="Search name, @ or phone">
       <button class="mini on" data-f="review" data-label="Waiting for approval">Waiting for approval</button>
