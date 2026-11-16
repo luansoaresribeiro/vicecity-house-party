@@ -11,7 +11,9 @@ const PRICES: Record<string, Record<string, number>> = {
 };
 const SALES_CLOSE = Date.parse("2026-11-18T23:59:59-05:00"); // end of the online price
 const LATE_CLOSE = Date.parse("2026-11-20T18:00:00-05:00");  // end of late tickets (site stops selling)
-const phase = () => (Date.now() <= SALES_CLOSE ? "online" : Date.now() <= LATE_CLOSE ? "late" : "closed");
+// the party date isn't set yet (guests vote for it): until then everyone pays the online price, no deadlines
+const DATES_SET = false;
+const phase = () => (!DATES_SET || Date.now() <= SALES_CLOSE ? "online" : Date.now() <= LATE_CLOSE ? "late" : "closed");
 const genderOf = (g: { gender?: string | null; ticket?: string }) => g.gender ?? (g.ticket === "ladies" ? "female" : "male");
 const priceNow = (gender: string) => PRICES[gender === "female" ? "female" : "male"][phase()] ?? null;
 const HOLD_MIN = 30; // opening checkout holds a spot for 30 min (Stripe's minimum session life)
@@ -199,7 +201,7 @@ async function pay(req: Request) {
       quantity: 1,
       price_data: {
         currency: "usd", unit_amount: amount,
-        product_data: { name: `Vice City — After Dark · ${g.ticket === "ladies" ? "Ladies" : "Guys"} · ${label} ticket`, description: "Fri, Nov 20 · 8PM–4AM · All sales final, no refunds" },
+        product_data: { name: `Vice City — After Dark · ${g.ticket === "ladies" ? "Ladies" : "Guys"} · ${label} ticket`, description: `${DATES_SET ? "Fri, Nov 20" : "Date coming up"} · 8PM–4AM · All sales final, no refunds` },
       },
     }],
     client_reference_id: g.id,

@@ -18,12 +18,15 @@
     renderWall(tailor(lastGuests));
   }));
   // ticket phases: online price → late tickets (Thu–Fri) → closed (text us / at the door)
-  const phase = () => { const n = Date.now(); return n <= Date.parse(P.salesClose) ? "online" : n <= Date.parse(P.lateClose) ? "late" : "closed"; };
+  // while the party date isn't set (P.datesSet false) everything stays on the online price, with no deadlines
+  const phase = () => { if (!P.datesSet) return "online"; const n = Date.now(); return n <= Date.parse(P.salesClose) ? "online" : n <= Date.parse(P.lateClose) ? "late" : "closed"; };
   const priceFor = (gender, ph = phase()) => (P.prices[gender === "female" ? "female" : "male"] || {})[ph === "closed" ? "door" : ph];
   function renderPrices() {
     if (!viewer) return;
     const pr = P.prices[viewer], ph = phase(), order = ["online", "late", "door"];
-    const cards = [["online", "Online", "until Wed"], ["late", "Late", "Thu–Fri"], ["door", "At the door", "Fri night"]]
+    const cards = (P.datesSet
+      ? [["online", "Online", "until Wed"], ["late", "Late", "Thu–Fri"], ["door", "At the door", "Fri night"]]
+      : [["online", "Online", "now"], ["late", "Late", "closer to the date"], ["door", "At the door", "party night"]])
       .filter(([k]) => pr[k] != null) // girls have no door price
       .map(([k, label, when]) => {
         const d = document.createElement("div");
@@ -250,11 +253,19 @@
     dateOptions = options || [];
     $("voteBtn").hidden = dateOptions.length < 2;
     if (dateOptions.length < 2) $("voteBox").hidden = true;
-    $("voteOptions").replaceChildren(...dateOptions.map((o) => {
-      const b = document.createElement("button"); b.type = "button"; b.textContent = o;
-      b.classList.toggle("on", o === myVote);
-      b.onclick = () => castVote(o); return b;
-    }));
+    const month = (o) => (/\bnov/i.test(o) ? "November" : /\bdec/i.test(o) ? "December" : "Other dates");
+    const els = [];
+    ["November", "December", "Other dates"].forEach((m) => {
+      const opts = dateOptions.filter((o) => month(o) === m);
+      if (!opts.length) return;
+      const h = document.createElement("p"); h.className = "vote-month"; h.textContent = m; els.push(h);
+      opts.forEach((o) => {
+        const b = document.createElement("button"); b.type = "button"; b.textContent = o;
+        b.classList.toggle("on", o === myVote);
+        b.onclick = () => castVote(o); els.push(b);
+      });
+    });
+    $("voteOptions").replaceChildren(...els);
   }
   async function castVote(option) {
     try {
@@ -374,7 +385,7 @@
     const warn = document.createElement("p"); warn.className = "warn";
     warn.textContent = "Your spot is only guaranteed once you pay.";
     const later = document.createElement("p"); later.className = "fine";
-    later.textContent = "Not ready? Bookmark this page — it's your link to come back and pay. Online price until Wed at midnight, late tickets until Fri 6PM. Spots go to whoever pays first.";
+    later.textContent = "Not ready? Bookmark this page — it's your link to come back and pay. The best price is now; it goes up closer to the party. Spots go to whoever pays first.";
     box.replaceChildren(h, warn, ...payBlock(token, d.amount), later);
     box.scrollIntoView({ behavior: "smooth", block: "center" });
   }
@@ -420,7 +431,7 @@
       const p = document.createElement("p");
       if (d.status === "paid") {
         h.textContent = "You're in!";
-        p.textContent = `${d.name} · ${d.ticket === "ladies" ? "Ladies" : "Guys"} ticket · Friday, Nov 20 · 8PM–4AM`;
+        p.textContent = `${d.name} · ${d.ticket === "ladies" ? "Ladies" : "Guys"} ticket · ${P.datesSet ? "Friday, Nov 20" : "date coming up (we'll text you)"} · 8PM–4AM`;
         const me = bubbleEl(d, true); me.style.position = "static";
         const addr = document.createElement("p"); addr.className = "addr";
         addr.textContent = d.address ? `📍 ${d.address}` : "📍 Address drops soon — come back to this page (bookmark it!)";
@@ -450,7 +461,7 @@
   function tickCountdown() {
     const now = Date.now(), ph = phase(), start = Date.parse(P.countdownStart || P.salesClose);
     const end = Date.parse(ph === "online" ? P.salesClose : P.lateClose);
-    const show = paymentsOpen && ph !== "closed" && now >= start && spotsLeft > 0;
+    const show = P.datesSet && paymentsOpen && ph !== "closed" && now >= start && spotsLeft > 0;
     $("cdLabel").textContent = ph === "online" ? "⏰ Online price ends in" : "⏰ Late tickets end in";
     $("countdown").hidden = !show;
     if (!show) return;

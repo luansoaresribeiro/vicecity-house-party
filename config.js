@@ -9,6 +9,9 @@ window.PARTY = {
     female: { online: 20, late: 35 },
     male: { online: 40, late: 55, door: 70 },
   },
+  // The party date isn't set yet (guests vote for it). While false: everyone sees the online price,
+  // no deadlines and no countdown. When the date is chosen: set true and update the 3 dates below.
+  datesSet: false,
   // Online price until Wed Nov 18, 11:59 PM Miami time (EST = UTC-5)
   salesClose: "2026-11-18T23:59:59-05:00",
   // Late tickets keep selling on the site until Fri Nov 20, 6 PM Miami time
