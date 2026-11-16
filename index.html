@@ -43,9 +43,9 @@
 <main>
   <section class="hero">
     <div class="flyer-wrap">
-    <div class="seal" role="img" aria-label="Exclusive for STU, FIU and UM students">
+    <div class="seal" role="img" aria-label="Exclusive for STU and FIU students">
       <span class="seal-top">Exclusive</span>
-      <span class="seal-mid">STU · FIU · UM</span>
+      <span class="seal-mid">STU · FIU</span>
       <span class="seal-bot">Students only</span>
     </div>
     <figure class="flyer">
@@ -54,11 +54,14 @@
     </div>
 
     <div class="info">
-      <p class="script">After Dark</p>
+      <div class="hero-title">
+        <p class="script">Frat House Party</p>
+        <p class="open-bar">Open Bar</p>
+      </div>
       <dl class="facts">
-        <div><dt>When</dt><dd>Friday, Nov 20 · 8PM – 4AM</dd></div>
-        <div><dt>Where</dt><dd>Miami · <strong>address revealed after RSVP</strong></dd></div>
-        <div><dt>Dress code</dt><dd>Miami Vice — linen · sundresses · button ups · colors</dd></div>
+        <div><span class="ic" aria-hidden="true">🕗</span><dt>When</dt><dd>Friday, Nov 20 · 8PM – 4AM</dd></div>
+        <div><span class="ic" aria-hidden="true">📍</span><dt>Where</dt><dd>Miami · <strong>address revealed after RSVP</strong></dd></div>
+        <div><span class="ic" aria-hidden="true">🌴</span><dt>Dress code</dt><dd>Miami Vice — linen · sundresses · button ups · colors</dd></div>
       </dl>
 
       <div class="counter" id="counter" aria-live="polite">
@@ -120,13 +123,12 @@
           <option value="" disabled selected>Choose one</option>
           <option value="FIU">FIU</option>
           <option value="St. Thomas">St. Thomas (STU)</option>
-          <option value="UM">UM (University of Miami)</option>
           <option value="Other">Other</option>
         </select>
       </label>
 
       <div class="referral" id="referral" hidden>
-        <p class="ref-note">✨ Exclusive for STU, FIU &amp; UM students. Not one of them? Tell us who invited you.</p>
+        <p class="ref-note">✨ Exclusive for STU &amp; FIU students. Not one of them? Tell us who invited you.</p>
         <label>Who invited you?
           <input id="refName" maxlength="60" autocomplete="off" placeholder="Their full name">
         </label>
@@ -135,7 +137,6 @@
             <option value="" disabled selected>Choose one</option>
             <option value="FIU">FIU</option>
             <option value="St. Thomas">St. Thomas (STU)</option>
-            <option value="UM">UM (University of Miami)</option>
           </select>
         </label>
       </div>
