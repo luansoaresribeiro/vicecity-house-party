@@ -116,6 +116,12 @@ body.locked{overflow:hidden}
 .yt-hidden{position:fixed;left:0;bottom:0;width:200px;height:200px;opacity:.01;pointer-events:none;z-index:-2;overflow:hidden}
 .yt-hidden iframe{width:200px;height:200px;border:0}
 
+/* wall filter: Everyone / only the opposite gender */
+.wall-filter{display:flex;gap:10px;justify-content:center;margin:-4px 0 16px}
+.wall-filter button{background:transparent;color:var(--cream);border:1.5px solid var(--pink);border-radius:999px;padding:9px 18px;
+  font:600 15px "Barlow Condensed",sans-serif;letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+.wall-filter button.on{background:var(--pink);box-shadow:var(--glow)}
+
 /* guest wall */
 .wall{position:relative;height:min(70vh,560px);border-radius:var(--radius);overflow:hidden;
   border:1px solid var(--line);

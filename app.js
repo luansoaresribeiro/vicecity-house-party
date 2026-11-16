@@ -6,14 +6,17 @@
   // Guy / Girl picked on the entry screen: shows their own price and the opposite gender first on the wall
   let viewer = null; // "male" | "female" | null
   let lastGuests = [];
+  let onlyOpposite = false; // wall filter: "Everyone" (default) or only the opposite gender
   function tailor(list) {
-    if (!viewer) return list;
+    if (!viewer || !onlyOpposite) return list;
     const opp = viewer === "male" ? "female" : "male";
-    const named = (g) => !g.mystery && !g.filler;
-    const theirs = list.filter((g) => g.gender === opp);
-    if (theirs.filter(named).length >= 6) return theirs.concat(list.filter((g) => g.mystery && g.gender !== opp));
-    return theirs.concat(list.filter((g) => g.gender !== opp)); // not enough yet: opposite gender first, then everyone else
+    return list.filter((g) => g.gender === opp);
   }
+  document.querySelectorAll("[data-wf]").forEach((b) => b.addEventListener("click", () => {
+    onlyOpposite = b.dataset.wf === "opp";
+    document.querySelectorAll("[data-wf]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
+    renderWall(tailor(lastGuests));
+  }));
   function choose(gender) {
     viewer = gender === "female" ? "female" : "male";
     try { localStorage.setItem("afterdark-gender", viewer); } catch {}
@@ -23,7 +26,8 @@
     // form: preselect their gender (they can still change it if they tapped the wrong one)
     const r = document.querySelector(`input[name=gender][value=${viewer}]`);
     if (r && !document.querySelector("input[name=gender]:checked")) { r.checked = true; r.dispatchEvent(new Event("change")); }
-    $("wallTitle").textContent = viewer === "male" ? "Girls pulling up 👀" : "Guys pulling up 👀";
+    $("wfOpp").textContent = viewer === "male" ? "Only girls 👀" : "Only guys 👀";
+    $("wallFilter").hidden = false;
     renderWall(tailor(lastGuests));
   }
   document.querySelectorAll("[data-gender]").forEach((b) => b.addEventListener("click", () => choose(b.dataset.gender)));
