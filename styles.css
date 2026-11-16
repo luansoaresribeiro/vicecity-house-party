@@ -48,7 +48,16 @@ main{max-width:1100px;margin:0 auto;padding:0 16px}
 /* date vote */
 .vote-link{margin-left:6px;background:var(--pink);color:#fff;border:0;border-radius:999px;padding:4px 12px;font:600 14px "Barlow Condensed",sans-serif;
   letter-spacing:.1em;text-transform:uppercase;cursor:pointer;box-shadow:var(--glow);vertical-align:middle}
-.vote-box{margin:-12px 0 22px;padding:14px 16px;border:1.5px solid var(--pink);border-radius:14px;background:rgba(255,46,138,.1);text-align:left}
+/* vote pop-up in the middle of the screen */
+.vote-dialog{width:min(420px,calc(100% - 32px));max-height:calc(100% - 40px);margin:auto;padding:22px 20px 18px;border:1.5px solid var(--pink);
+  border-radius:18px;background:linear-gradient(180deg,#2a0c3d,#14061f);color:var(--cream);box-shadow:var(--glow),0 24px 60px rgba(0,0,0,.6);text-align:left}
+.vote-dialog::backdrop{background:rgba(8,2,14,.72);backdrop-filter:blur(4px)}
+.vote-dialog[open]{animation:popIn .22s ease-out}
+@keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+.vote-close{position:absolute;top:10px;right:12px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--cream);font-size:16px;cursor:pointer}
+.vote-dialog .vote-q{padding-right:36px}
+.vote-dialog .btn{margin-top:14px}
+.soon{display:inline-block;margin-top:6px;font-size:15px;letter-spacing:.04em;color:#f3d27a;border:1px solid rgba(243,210,122,.5);border-radius:999px;padding:3px 10px}
 .vote-q{font-size:18px;font-weight:600;margin-bottom:10px}
 .vote-hint{font-size:16px;color:var(--cream);margin:-4px 0 10px}
 .vote-hint strong{color:#f3d27a}
@@ -57,7 +66,7 @@ main{max-width:1100px;margin:0 auto;padding:0 16px}
 .vote-options button{background:transparent;color:var(--cream);border:1.5px solid var(--pink);border-radius:999px;padding:9px 16px;
   font:600 16px "Barlow Condensed",sans-serif;letter-spacing:.06em;cursor:pointer}
 .vote-options button.on{background:var(--pink);box-shadow:var(--glow)}
-.vote-box .fine{margin-top:8px}
+.vote-dialog .fine{margin-top:8px;min-height:1em}
 /* when / where / dress code as small neon cards */
 .facts{display:grid;gap:10px;margin-bottom:24px}
 .facts>div{display:grid;grid-template-columns:34px 1fr;column-gap:12px;align-items:center;text-align:left;

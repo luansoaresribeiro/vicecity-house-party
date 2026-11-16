@@ -60,15 +60,18 @@
       </div>
       <dl class="facts">
         <div><span class="ic" aria-hidden="true">🕗</span><dt>When</dt><dd>Coming up 👀 <button type="button" class="vote-link" id="voteBtn" hidden>Vote for the best date</button></dd></div>
-        <div><span class="ic" aria-hidden="true">📍</span><dt>Where</dt><dd>Miami · <strong>revealed one day before the party</strong> — check back here</dd></div>
+        <div><span class="ic" aria-hidden="true">📍</span><dt>Where</dt><dd>Miami · <strong>exact address revealed 1 day before the party</strong>
+          <span class="soon">🎥 House tour video drops here soon</span></dd></div>
         <div><span class="ic" aria-hidden="true">🌴</span><dt>Dress code</dt><dd>Miami Vice — linen · sundresses · button ups · colors</dd></div>
       </dl>
-      <div class="vote-box" id="voteBox" hidden>
-        <p class="vote-q">Which date works best for you?</p>
-        <p class="vote-hint">📅 There are options in <strong>November and December</strong> — check them all before you pick.</p>
+      <dialog class="vote-dialog" id="voteDialog" aria-labelledby="voteTitle">
+        <button type="button" class="vote-close" id="voteClose" aria-label="Close">✕</button>
+        <p class="vote-q" id="voteTitle">Which date works best for you?</p>
+        <p class="vote-hint">👇 There are options in <strong>November and December</strong> — check them all before you pick.</p>
         <div class="vote-options" id="voteOptions"></div>
         <p class="fine" id="voteMsg" aria-live="polite"></p>
-      </div>
+        <button type="button" class="btn wide" id="voteSend" disabled>Send my vote</button>
+      </dialog>
 
       <div class="counter" id="counter" aria-live="polite">
         <div><b id="spotsLeft">Few</b><span>spots left</span></div>

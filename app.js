@@ -252,7 +252,6 @@
     if (JSON.stringify(options) === JSON.stringify(dateOptions)) return;
     dateOptions = options || [];
     $("voteBtn").hidden = dateOptions.length < 2;
-    if (dateOptions.length < 2) $("voteBox").hidden = true;
     const month = (o) => (/\bnov/i.test(o) ? "November" : /\bdec/i.test(o) ? "December" : "Other dates");
     const els = [];
     ["November", "December", "Other dates"].forEach((m) => {
@@ -262,20 +261,43 @@
       opts.forEach((o) => {
         const b = document.createElement("button"); b.type = "button"; b.textContent = o;
         b.classList.toggle("on", o === myVote);
-        b.onclick = () => castVote(o); els.push(b);
+        b.onclick = () => pick(o); els.push(b);
       });
     });
     $("voteOptions").replaceChildren(...els);
   }
-  async function castVote(option) {
-    try {
-      await api("vote", { voter, option });
-      myVote = option; try { localStorage.setItem("afterdark-vote", option); } catch {}
-      document.querySelectorAll("#voteOptions button").forEach((b) => b.classList.toggle("on", b.textContent === option));
-      $("voteMsg").textContent = `Thanks! You picked ${option} — you can change it anytime.`;
-    } catch (err) { $("voteMsg").textContent = err.message; }
+  // pop-up: pick a date → "Send my vote" → thanks → closes by itself
+  const dlg = $("voteDialog");
+  let choice = null;
+  function pick(option) {
+    choice = option;
+    document.querySelectorAll("#voteOptions button").forEach((b) => b.classList.toggle("on", b.textContent === option));
+    $("voteSend").disabled = false; $("voteMsg").textContent = "";
   }
-  $("voteBtn").addEventListener("click", () => { $("voteBox").hidden = !$("voteBox").hidden; });
+  function openVote() {
+    choice = myVote;
+    document.querySelectorAll("#voteOptions button").forEach((b) => b.classList.toggle("on", b.textContent === myVote));
+    $("voteSend").disabled = !choice; $("voteSend").textContent = "Send my vote";
+    $("voteMsg").textContent = myVote ? `Your vote: ${myVote} — you can change it.` : "";
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+  }
+  const closeVote = () => (dlg.close ? dlg.close() : dlg.removeAttribute("open"));
+  $("voteSend").addEventListener("click", async () => {
+    if (!choice) return;
+    $("voteSend").disabled = true; $("voteSend").textContent = "Sending…";
+    try {
+      await api("vote", { voter, option: choice });
+      myVote = choice; try { localStorage.setItem("afterdark-vote", choice); } catch {}
+      $("voteMsg").textContent = `Thanks! You picked ${choice} 🌴`; $("voteSend").textContent = "Sent ✓";
+      setTimeout(closeVote, 1300);
+    } catch (err) { $("voteMsg").textContent = err.message; $("voteSend").disabled = false; $("voteSend").textContent = "Send my vote"; }
+  });
+  $("voteBtn").addEventListener("click", openVote);
+  $("voteClose").addEventListener("click", closeVote);
+  dlg.addEventListener("click", (e) => { // tap outside the box (on the dark backdrop) closes it
+    const r = dlg.getBoundingClientRect();
+    if (e.target === dlg && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) closeVote();
+  });
 
   // ---------- data ----------
   async function loadWall() {
