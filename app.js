@@ -17,12 +17,31 @@
     document.querySelectorAll("[data-wf]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
     renderWall(tailor(lastGuests));
   }));
+  // ticket phases: online price → late tickets (Thu–Fri) → closed (text us / at the door)
+  const phase = () => { const n = Date.now(); return n <= Date.parse(P.salesClose) ? "online" : n <= Date.parse(P.lateClose) ? "late" : "closed"; };
+  const priceFor = (gender, ph = phase()) => (P.prices[gender === "female" ? "female" : "male"] || {})[ph === "closed" ? "door" : ph];
+  function renderPrices() {
+    if (!viewer) return;
+    const pr = P.prices[viewer], ph = phase(), order = ["online", "late", "door"];
+    const cards = [["online", "Online", "until Wed"], ["late", "Late", "Thu–Fri"], ["door", "At the door", "Fri night"]]
+      .filter(([k]) => pr[k] != null) // girls have no door price
+      .map(([k, label, when]) => {
+        const d = document.createElement("div");
+        const cur = (ph === "closed" ? "door" : ph) === k;
+        d.className = "price" + (k === "door" ? " door" : "") + (cur ? " now" : order.indexOf(k) < order.indexOf(ph === "closed" ? "door" : ph) ? " past" : "");
+        const sp = document.createElement("span"); sp.textContent = label;
+        const b = document.createElement("b"); b.textContent = "$" + pr[k];
+        const sm = document.createElement("small"); sm.textContent = when;
+        d.append(sp, b, sm); return d;
+      });
+    const box = document.querySelector(".prices");
+    box.replaceChildren(...cards);
+    box.classList.add("solo"); box.classList.toggle("two", cards.length === 2);
+  }
   function choose(gender) {
     viewer = gender === "female" ? "female" : "male";
     try { localStorage.setItem("afterdark-gender", viewer); } catch {}
-    // price: show only theirs (+ the door price)
-    document.querySelectorAll(".prices .price[data-ticket]").forEach((c) => { c.hidden = c.dataset.ticket !== viewer; });
-    document.querySelector(".prices").classList.add("solo");
+    renderPrices(); // their own prices: online / late (/ door for guys)
     // form: preselect their gender (they can still change it if they tapped the wrong one)
     const r = document.querySelector(`input[name=gender][value=${viewer}]`);
     if (r && !document.querySelector("input[name=gender]:checked")) { r.checked = true; r.dispatchEvent(new Event("change")); }
@@ -31,16 +50,14 @@
     renderWall(tailor(lastGuests));
   }
   document.querySelectorAll("[data-gender]").forEach((b) => b.addEventListener("click", () => choose(b.dataset.gender)));
-  let paymentsOpen = false; // organizer flips this in /admin; until then the form is a "Join the list"
-  const submitLabel = () => (paymentsOpen ? "Apply" : "Join the list");
+  let paymentsOpen = false; // organizer flips this in /admin
+  const submitLabel = () => "Request an invite"; // invite only: every new request waits for the organizer's approval
   function applyMode(open) {
     paymentsOpen = !!open;
     if (!$("payBtn").disabled) $("payBtn").textContent = submitLabel();
-    if (!salesClosed()) $("heroCta").textContent = paymentsOpen ? "Get your ticket" : "Join the list";
     $("listNote").hidden = paymentsOpen;
-    $("finePay").hidden = !paymentsOpen; $("fineList").hidden = paymentsOpen;
   }
-  const salesClosed = () => Date.now() > Date.parse(P.salesClose);
+  const salesClosed = () => phase() === "closed"; // online + late are both over
 
   // ---------- API ----------
   async function api(action, body, query = "") {
@@ -116,8 +133,10 @@
     el.classList.add("enter");
     el.style.setProperty("--s", s + "px");
     wall.append(el);
-    const ang = Math.random() * Math.PI * 2, sp = 0.06 + Math.random() * 0.06;
-    floaters.set(g.id, { el, s, x: Math.random() * Math.max(1, W - s), y: Math.random() * Math.max(1, H - s - 26),
+    const ang = Math.random() * Math.PI * 2, sp = 0.25 + Math.random() * 0.12;
+    const x = Math.random() * Math.max(1, W - s), y = Math.random() * Math.max(1, H - s - 26);
+    el.style.transform = `translate(${x}px,${y}px)`; // placed right away (also when animations are off)
+    floaters.set(g.id, { el, s, x, y,
       vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, phase: Math.random() * 6, leaving: false, named: isNamed(g),
       born: performance.now() - (stagger ? Math.random() * LIFE : 0) }); // first batch: staggered so they don't all swap at once
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove("enter")));
@@ -172,7 +191,7 @@
     fill(false);
     setTimeout(rotate, 500);
   }
-  if (!reduced) setTimeout(rotate, 1000);
+  setTimeout(rotate, 1000); // turns keep going even with "reduce motion" on (bubbles just don't drift)
 
   function tick(t) {
     const W = wall.clientWidth, H = wall.clientHeight;
@@ -187,7 +206,7 @@
       }
     }
     for (const f of list) {
-      const sp = Math.hypot(f.vx, f.vy), max = 0.2, minSp = 0.05; // slow, readable drift
+      const sp = Math.hypot(f.vx, f.vy), max = 0.42, minSp = 0.22; // calm but visible drift (~15–25 px/s)
       if (sp > max) { f.vx *= max / sp; f.vy *= max / sp; }
       else if (sp < minSp) { f.vx *= minSp / (sp || 1); f.vy *= minSp / (sp || 1); }
       const h = f.s + 26;
@@ -212,7 +231,7 @@
       const box = $("closedMsg");
       box.replaceChildren(soldOut ? "Sold out online 🔥" : "Online sales are closed.", document.createElement("br"), "Text or call ");
       const tel = document.createElement("a"); tel.className = "phone"; tel.href = "sms:+1" + P.phone.replace(/\D/g, ""); tel.textContent = P.phone;
-      box.append(tel, " to request a ticket · At the door: $70");
+      box.append(tel, " to request a ticket" + (P.prices.male.door ? ` · Guys at the door: $${P.prices.male.door}` : ""));
       box.hidden = false;
       $("payBtn").disabled = true; $("heroCta").textContent = soldOut ? "Sold out" : "Sales closed";
     }
@@ -255,6 +274,7 @@
     const name = f.name.value.trim(), instagram = cleanHandle(f.instagram.value), school = f.school.value;
     const gender = (f.querySelector("input[name=gender]:checked") || {}).value;
     const refName = $("refName").value.trim().replace(/\s+/g, " "), refSchool = $("refSchool").value;
+    const team = f.team.value === "Other" ? $("teamOther").value.trim().replace(/\s+/g, " ") : f.team.value;
     const phone = f.phone.value.trim(), digits = phone.replace(/\D/g, "");
     if (name.length < 2) return showError("Add your name.");
     if (!/^[a-z0-9._]{1,30}$/.test(instagram)) return showError("That Instagram handle doesn't look right.");
@@ -262,12 +282,14 @@
     if (!school) return showError("Pick your school.");
     if (school === "Other" && refName.length < 2) return showError("Tell us who invited you.");
     if (school === "Other" && !refSchool) return showError("Pick the school of who invited you.");
+    if (!f.team.value) return showError("Pick your team (or \"Not on a team\").");
+    if (team.length < 2) return showError("Tell us which team.");
     if (!gender) return showError("Select your gender.");
     if (!$("terms").checked) return showError("Please confirm you understand there are no refunds.");
     if (PREVIEW) return showError("Preview mode — payments turn on once the site is connected.");
     $("payBtn").disabled = true; $("payBtn").textContent = "Sending…";
     try {
-      const d = await api("apply", { name, instagram, phone, school, gender, refName, refSchool, showPhoto: $("showPhoto").checked, photo: photoData });
+      const d = await api("apply", { name, instagram, phone, school, team, gender, refName, refSchool, showPhoto: $("showPhoto").checked, photo: photoData });
       history.replaceState(null, "", "/?t=" + d.token);
       showApplied(d.token, d);
     } catch (err) {
@@ -290,6 +312,14 @@
     note.textContent = "Secure checkout by Stripe · card, Apple Pay, Google Pay · All sales final, no refunds";
     return [btn, note];
   }
+  function underReview(first) {
+    const h = document.createElement("h2"); h.textContent = `Request received, ${first}! 🌴`;
+    const p = document.createElement("p"); p.className = "warn";
+    p.textContent = "We'll text you if you're in.";
+    const f = document.createElement("p"); f.className = "fine";
+    f.textContent = "Invite only — we review every request. Bookmark this page: it's your link to check your invite and get your ticket.";
+    return [h, p, f];
+  }
   function onTheList(first) {
     const h = document.createElement("h2"); h.textContent = `You're on the list, ${first}! 🌴`;
     const p = document.createElement("p"); p.className = "warn";
@@ -301,6 +331,11 @@
   function showApplied(token, d) {
     $("rsvp").hidden = true;
     const box = $("applied"); box.hidden = false;
+    if (d.approval !== "approved") {
+      box.replaceChildren(...underReview(d.first));
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     if (!d.paymentsOpen && !paymentsOpen) {
       box.replaceChildren(...onTheList(d.first));
       box.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -310,7 +345,7 @@
     const warn = document.createElement("p"); warn.className = "warn";
     warn.textContent = "Your spot is only guaranteed once you pay.";
     const later = document.createElement("p"); later.className = "fine";
-    later.textContent = "Not ready? Bookmark this page — it's your link to come back and pay before Wed, Nov 18 at midnight. Spots go to whoever pays first.";
+    later.textContent = "Not ready? Bookmark this page — it's your link to come back and pay. Online price until Wed at midnight, late tickets until Fri 6PM. Spots go to whoever pays first.";
     box.replaceChildren(h, warn, ...payBlock(token, d.amount), later);
     box.scrollIntoView({ behavior: "smooth", block: "center" });
   }
@@ -324,10 +359,18 @@
 
   // gender decides the price
   document.querySelectorAll("input[name=gender]").forEach((r) => r.addEventListener("change", () => {
-    const ladies = r.value === "female";
-    const b = document.createElement("b"); b.textContent = `$${ladies ? P.prices.ladies : P.prices.guys}`;
-    $("yourPrice").replaceChildren(`Your ticket: ${ladies ? "Ladies" : "Guys"} · `, b);
+    const ph = phase(), price = priceFor(r.value, ph);
+    const b = document.createElement("b"); b.textContent = price != null ? `$${price}` : "text us";
+    $("yourPrice").replaceChildren(`Your ticket (${ph === "online" ? "online price" : ph === "late" ? "late ticket" : "at the door"}): `, b);
   }));
+
+  // Team / Sport options (+ "Other" with a text box)
+  $("team").append(...P.teams.concat(["Not on a team", "Other"]).map((t) => { const o = document.createElement("option"); o.value = o.textContent = t; return o; }));
+  $("team").addEventListener("change", (e) => {
+    const other = e.target.value === "Other";
+    $("teamOtherWrap").hidden = !other;
+    if (other) $("teamOther").focus();
+  });
 
   function renderCrews(list) {
     const items = (list || []).filter(Boolean);
@@ -355,6 +398,9 @@
         const note = document.createElement("p"); note.className = "fine";
         note.textContent = "Show this page at the door. Your Stripe receipt was sent to your email.";
         box.append(h, me, p, addr, note);
+      } else if (d.approval !== "approved") {
+        box.append(...underReview(d.name.split(" ")[0])); // pending or declined: same neutral message
+        $("rsvp").hidden = true;
       } else if (!d.paymentsOpen) {
         box.append(...onTheList(d.name.split(" ")[0]));
         $("rsvp").hidden = true;
@@ -373,8 +419,10 @@
   // ---------- countdown bar: appears by itself Tue 12AM → Wed midnight, only while payments are open ----------
   const pad = (n) => String(n).padStart(2, "0");
   function tickCountdown() {
-    const now = Date.now(), end = Date.parse(P.salesClose), start = Date.parse(P.countdownStart || P.salesClose);
-    const show = paymentsOpen && now >= start && now < end && spotsLeft > 0;
+    const now = Date.now(), ph = phase(), start = Date.parse(P.countdownStart || P.salesClose);
+    const end = Date.parse(ph === "online" ? P.salesClose : P.lateClose);
+    const show = paymentsOpen && ph !== "closed" && now >= start && spotsLeft > 0;
+    $("cdLabel").textContent = ph === "online" ? "⏰ Online price ends in" : "⏰ Late tickets end in";
     $("countdown").hidden = !show;
     if (!show) return;
     const s = Math.floor((end - now) / 1000), d = Math.floor(s / 86400);

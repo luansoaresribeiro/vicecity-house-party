@@ -34,6 +34,22 @@
   .pay-switch.open b{color:#5ff2b0}
   .tag{font-size:13px;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid var(--muted)}
   .tag.paid{border-color:#5ff2b0;color:#5ff2b0}
+  .tag.review{border-color:#f3d27a;color:#f3d27a}
+  .tag.declined{border-color:#ff8a8a;color:#ff8a8a}
+  .g.declined{opacity:.45}
+  .mini.ok{border-color:#5ff2b0;color:#5ff2b0}
+  .mini.no{border-color:#ff8a8a;color:#ff8a8a}
+  .mix table{width:100%;border-collapse:collapse;font-size:18px}
+  .mix th,.mix td{padding:8px 6px;text-align:center;border-bottom:1px solid rgba(247,239,227,.12)}
+  .mix th:first-child,.mix td:first-child{text-align:left}
+  .mix th{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--pink-soft);font-weight:600}
+  .mix tr.total td{font-weight:700;border-bottom:0}
+  .mix td small{color:var(--muted);font-size:13px}
+  .mix h3,.teams h3{font-size:13px;letter-spacing:.25em;text-transform:uppercase;color:var(--pink-soft);margin-bottom:8px;font-weight:600}
+  .teams{margin-top:14px}
+  .teams ul{list-style:none;display:flex;flex-wrap:wrap;gap:8px}
+  .teams li{border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:15px}
+  .teams li b{color:var(--pink)}
   .mini{background:transparent;color:var(--cream);border:1px solid var(--pink);border-radius:999px;padding:6px 12px;font:600 14px "Barlow Condensed";letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
   .mini.on{background:var(--pink)}
   .filters .mini{padding:8px 14px}
@@ -54,13 +70,15 @@
 
   <div id="panel" hidden>
     <div class="stats" id="stats"></div>
+    <div class="card mix" id="mix" style="margin-top:14px"></div>
+    <div class="teams" id="teams"></div>
 
     <div class="card pay-switch" id="paySwitch">
       <div><b id="payState">Payments: closed</b><small id="payHint">Only "Join the list" is open. Flip this when the house is confirmed.</small></div>
       <button class="btn" type="button" id="payToggle">Open payments</button>
     </div>
     <div class="row" style="margin-top:12px">
-      <button class="mini" type="button" id="copyPhones">Copy phones of people who haven't paid</button>
+      <button class="mini" type="button" id="copyPhones">Copy phones: approved, not paid</button>
       <span class="fine" id="copyMsg"></span>
     </div>
 
@@ -81,9 +99,11 @@
 
     <div class="row filters" style="margin-bottom:12px">
       <input type="search" id="q" placeholder="Search name, @ or phone">
-      <button class="mini on" data-f="all" data-label="Everyone">Everyone</button>
-      <button class="mini" data-f="pending" data-label="On the list, not paid">On the list, not paid</button>
+      <button class="mini on" data-f="review" data-label="Waiting for approval">Waiting for approval</button>
+      <button class="mini" data-f="list" data-label="Approved, not paid">Approved, not paid</button>
       <button class="mini" data-f="paid" data-label="Paid">Paid</button>
+      <button class="mini" data-f="declined" data-label="Declined">Declined</button>
+      <button class="mini" data-f="all" data-label="Everyone">Everyone</button>
     </div>
     <div class="list" id="list"></div>
   </div>

@@ -21,7 +21,7 @@
 <div class="sky" aria-hidden="true"></div>
 
 <a class="countdown" id="countdown" href="#tickets" hidden aria-live="off">
-  <span>⏰ Online tickets end in</span> <b id="cdTime">—</b> <span class="cd-sep">·</span> <b id="cdSpots">Few</b> <span>spots left</span>
+  <span id="cdLabel">⏰ Online price ends in</span> <b id="cdTime">—</b> <span class="cd-sep">·</span> <b id="cdSpots">Few</b> <span>spots left</span>
 </a>
 
 <div class="splash" id="splash" hidden role="dialog" aria-label="Enter the site">
@@ -65,9 +65,9 @@
         <div><b id="spotsLeft">Few</b><span>spots left</span></div>
       </div>
 
-      <a class="btn" href="#tickets" id="heroCta">Join the list</a>
-      <p class="deadline" id="salesNote">Online tickets <strong>until Wed, Nov 18 at midnight</strong>.
-        After that, text or call <a class="phone" href="sms:+17866566926">786-656-6926</a> to request a ticket · At the door: $70</p>
+      <a class="btn" href="#tickets" id="heroCta">Request an invite</a>
+      <p class="deadline" id="salesNote">Online price <strong>until Wed, Nov 18 at midnight</strong> · late tickets Thu–Fri until 6PM.
+        After that, text or call <a class="phone" href="sms:+17866566926">786-656-6926</a>.</p>
     </div>
   </section>
 
@@ -90,15 +90,15 @@
     <h2 id="ticketsTitle" class="eyebrow">Tickets</h2>
 
     <div class="prices">
-      <div class="price" data-ticket="female"><span>Ladies</span><b>$20</b></div>
-      <div class="price" data-ticket="male"><span>Guys</span><b>$40</b></div>
-      <div class="price door"><span>At the door</span><b>$70</b></div>
+      <div class="price"><span>Ladies from</span><b>$20</b></div>
+      <div class="price"><span>Guys from</span><b>$40</b></div>
+      <div class="price door"><span>Invite only</span><b>🌴</b></div>
     </div>
 
-    <p class="list-note" id="listNote">🎟️ <strong>Tickets drop soon.</strong> Join the list now — we'll text you the moment payment opens. Spots are first come, first served.</p>
+    <p class="list-note" id="listNote">🎟️ <strong>Invite only.</strong> Request your invite — once you're approved we'll text you the moment tickets drop. Spots are first come, first served.</p>
 
-    <p class="deadline center">⏰ Online sales end <strong>Wednesday, Nov 18 at midnight</strong>.<br>
-      Missed it? Text or call <a class="phone" href="sms:+17866566926">786-656-6926</a> to request a ticket.</p>
+    <p class="deadline center" id="deadlineNote">⏰ Online price ends <strong>Wednesday, Nov 18 at midnight</strong> · late tickets Thu–Fri until 6PM.<br>
+      Missed it? Text or call <a class="phone" href="sms:+17866566926">786-656-6926</a>.</p>
 
     <form id="rsvp" class="card" novalidate>
       <div class="closed-msg" id="closedMsg" hidden></div>
@@ -140,6 +140,15 @@
         </label>
       </div>
 
+      <label>Team / Sport
+        <select name="team" id="team" required>
+          <option value="" disabled selected>Choose one</option>
+        </select>
+      </label>
+      <label id="teamOtherWrap" hidden>Which team?
+        <input id="teamOther" maxlength="40" autocomplete="off" placeholder="e.g. Rowing, Dance team">
+      </label>
+
       <fieldset class="ticket-pick">
         <legend>Gender</legend>
         <label class="pill"><input type="radio" name="gender" value="female" required><span>Female</span></label>
@@ -159,8 +168,9 @@
       <label class="check"><input type="checkbox" id="terms" required> I get it: <strong>all sales are final, no refunds.</strong></label>
 
       <p class="error" id="formError" role="alert" hidden></p>
-      <button class="btn wide" type="submit" id="payBtn">Join the list</button>
-      <p class="fine center" id="formFine"><span id="finePay" hidden>Next step: pay to lock your spot. <strong>Your spot is only guaranteed once you pay.</strong></span><span id="fineList">Joining is free. When tickets drop we'll text you — <strong>your spot is only guaranteed once you pay.</strong></span><br>
+      <button class="btn wide" type="submit" id="payBtn">Request an invite</button>
+      <p class="fine center" id="formFine">Invite only — we review every request. Once you're approved we'll text you,
+        and <strong>your spot is only guaranteed once you pay.</strong><br>
         Ticket price is based on gender and tickets are checked at the door.</p>
     </form>
 

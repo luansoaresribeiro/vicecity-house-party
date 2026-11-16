@@ -4,8 +4,16 @@ import Stripe from "npm:stripe@17.7.0";
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 
 const CAPACITY = 200;
-const PRICES: Record<string, number> = { ladies: 2000, guys: 4000 }; // cents
-const SALES_CLOSE = Date.parse("2026-11-18T23:59:59-05:00");
+// cents, by phase: online price until Wed midnight → late tickets until Fri 6PM → closed (text us / at the door)
+const PRICES: Record<string, Record<string, number>> = {
+  female: { online: 2000, late: 3500 },
+  male: { online: 4000, late: 5500 },
+};
+const SALES_CLOSE = Date.parse("2026-11-18T23:59:59-05:00"); // end of the online price
+const LATE_CLOSE = Date.parse("2026-11-20T18:00:00-05:00");  // end of late tickets (site stops selling)
+const phase = () => (Date.now() <= SALES_CLOSE ? "online" : Date.now() <= LATE_CLOSE ? "late" : "closed");
+const genderOf = (g: { gender?: string | null; ticket?: string }) => g.gender ?? (g.ticket === "ladies" ? "female" : "male");
+const priceNow = (gender: string) => PRICES[gender === "female" ? "female" : "male"][phase()] ?? null;
 const HOLD_MIN = 30; // opening checkout holds a spot for 30 min (Stripe's minimum session life)
 const PHONE = "786-656-6926";
 const SCHOOLS = ["FIU", "St. Thomas", "UM", "Other"];
@@ -70,7 +78,7 @@ async function paymentsOpen() {
 // List phase (payments closed): everyone who joined the list shows up. Once payments open: only paid guests.
 async function wall() {
   const open = await paymentsOpen();
-  let q = db.from("guests").select("id,name,instagram,photo_path,show_photo,hidden,source,gender");
+  let q = db.from("guests").select("id,name,instagram,photo_path,show_photo,hidden,source,gender").eq("approval", "approved");
   q = open ? q.eq("status", "paid").order("paid_at", { ascending: true }) : q.order("created_at", { ascending: true });
   const { data, error } = await q;
   if (error) return fail("Couldn't load the guest list.", 500);
@@ -90,7 +98,7 @@ async function wall() {
   });
   const { data: st } = await db.from("settings").select("crews").eq("id", 1).single();
   // people on the list (each @ once, paid or not) — drives "spots left" during the list phase
-  const { data: handles } = await db.from("guests").select("id,instagram");
+  const { data: handles } = await db.from("guests").select("id,instagram").eq("approval", "approved");
   const listed = new Set((handles ?? []).map((h) => h.instagram ?? h.id)).size;
   return json({ guests, listed, crews: cleanCrews(st?.crews), paymentsOpen: open, ...(await counts()), capacity: CAPACITY });
 }
@@ -100,13 +108,14 @@ const soldOutMsg = `Sold out online 🔥 Text or call ${PHONE} to request a tick
 
 // ---------- public: step 1, apply (saves the guest; spot NOT held yet) ----------
 async function apply(req: Request) {
-  if (Date.now() > SALES_CLOSE) return fail(closedMsg);
+  if (phase() === "closed") return fail(closedMsg);
   const b = await req.json().catch(() => null);
   if (!b) return fail("Bad request.");
   const name = String(b.name ?? "").trim().replace(/\s+/g, " ");
   const instagram = String(b.instagram ?? "").trim().replace(/^@+/, "").toLowerCase();
   const school = String(b.school ?? "");
   const gender = String(b.gender ?? "");
+  const team = String(b.team ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
   const ticket = TICKET_FOR[gender];
   const phone = normalizePhone(String(b.phone ?? ""));
   if (name.length < 2 || name.length > 60) return fail("Add your name.");
@@ -117,6 +126,7 @@ async function apply(req: Request) {
   const refSchool = school === "Other" ? String(b.refSchool ?? "") : "";
   if (school === "Other" && refName.length < 2) return fail("Tell us who invited you.");
   if (school === "Other" && !REF_SCHOOLS.includes(refSchool)) return fail("Pick the school of who invited you.");
+  if (team.length < 2) return fail("Pick your team.");
   if (!ticket) return fail("Select your gender.");
 
   const dup = await db.from("guests").select("id", { count: "exact", head: true })
@@ -138,22 +148,22 @@ async function apply(req: Request) {
   }
 
   const fields = {
-    name, instagram, school, gender, phone, ticket,
-    referrer_name: refName || null, referrer_school: refSchool || null, amount_cents: PRICES[ticket], show_photo: b.showPhoto !== false,
+    name, instagram, school, team, gender, phone, ticket,
+    referrer_name: refName || null, referrer_school: refSchool || null, amount_cents: priceNow(gender) ?? 0, show_photo: b.showPhoto !== false,
   };
   // same @ already on the list (not paid) → update that entry instead of adding a duplicate
-  const { data: prev } = await db.from("guests").select("id,photo_path").eq("instagram", instagram).eq("status", "pending")
+  const { data: prev } = await db.from("guests").select("id,photo_path,approval").eq("instagram", instagram).eq("status", "pending")
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   const { data: g, error } = prev
-    ? await db.from("guests").update({ ...fields, photo_path: photo_path ?? prev.photo_path }).eq("id", prev.id).select("id,token").single()
-    : await db.from("guests").insert({ ...fields, photo_path }).select("id,token").single();
+    ? await db.from("guests").update({ ...fields, photo_path: photo_path ?? prev.photo_path }).eq("id", prev.id).select("id,token,approval").single() // keeps their approval
+    : await db.from("guests").insert({ ...fields, photo_path, approval: "pending" }).select("id,token,approval").single();
   if (error || !g) return fail("Couldn't save your application. Try again.", 500);
-  return json({ token: g.token, first: name.split(" ")[0], amount: PRICES[ticket] / 100, paymentsOpen: await paymentsOpen() });
+  return json({ token: g.token, first: name.split(" ")[0], approval: g.approval, amount: (priceNow(gender) ?? 0) / 100, paymentsOpen: await paymentsOpen() });
 }
 
 // ---------- public: step 2, pay (fresh Stripe checkout each time, holds the spot 30 min) ----------
 async function pay(req: Request) {
-  if (Date.now() > SALES_CLOSE) return fail(closedMsg);
+  if (phase() === "closed") return fail(closedMsg);
   if (!(await paymentsOpen())) return fail("Tickets aren't on sale yet — we'll text you the moment they drop. 🌴");
   if (!env("STRIPE_SECRET_KEY") || !SITE) return fail("Payments open soon. 🌴 You're on the list.", 503);
   const b = await req.json().catch(() => ({}));
@@ -162,6 +172,10 @@ async function pay(req: Request) {
   const { data: g } = await db.from("guests").select("*").eq("token", t).maybeSingle();
   if (!g) return fail("Application not found.", 404);
   if (g.status === "paid") return fail("You already paid. You're in! 🌴");
+  if (g.approval !== "approved") return fail("Your invite is still being reviewed — we'll text you. 🌴");
+  const amount = priceNow(genderOf(g));
+  if (!amount) return fail(closedMsg);
+  const label = phase() === "online" ? "Online" : "Late";
   const { going, held } = await counts(g.id);
   if (going + held >= CAPACITY) return fail(soldOutMsg);
 
@@ -170,8 +184,8 @@ async function pay(req: Request) {
     line_items: [{
       quantity: 1,
       price_data: {
-        currency: "usd", unit_amount: g.amount_cents,
-        product_data: { name: `Vice City — After Dark · ${g.ticket === "ladies" ? "Ladies" : "Guys"} ticket`, description: "Fri, Nov 20 · 8PM–4AM · All sales final, no refunds" },
+        currency: "usd", unit_amount: amount,
+        product_data: { name: `Vice City — After Dark · ${g.ticket === "ladies" ? "Ladies" : "Guys"} · ${label} ticket`, description: "Fri, Nov 20 · 8PM–4AM · All sales final, no refunds" },
       },
     }],
     client_reference_id: g.id,
@@ -180,7 +194,7 @@ async function pay(req: Request) {
     cancel_url: `${SITE}/?t=${g.token}`,
     expires_at: Math.floor(Date.now() / 1000) + HOLD_MIN * 60 + 60,
   });
-  await db.from("guests").update({ stripe_session_id: session.id, checkout_started_at: new Date().toISOString() }).eq("id", g.id);
+  await db.from("guests").update({ stripe_session_id: session.id, checkout_started_at: new Date().toISOString(), amount_cents: amount }).eq("id", g.id);
   return json({ url: session.url });
 }
 
@@ -197,7 +211,8 @@ async function ticketPage(url: URL) {
   }
   const { data: st } = await db.from("settings").select("*").eq("id", 1).single();
   return json({
-    id: g.id, name: g.name, instagram: g.instagram, ticket: g.ticket, status: g.status, amount: g.amount_cents / 100,
+    id: g.id, name: g.name, instagram: g.instagram, ticket: g.ticket, status: g.status, approval: g.approval,
+    amount: g.status === "paid" ? g.amount_cents / 100 : (priceNow(genderOf(g)) ?? 0) / 100,
     paymentsOpen: !!st?.payments_open,
     photo: photoUrl(g.photo_path), // their own page always shows their own photo
     address: g.status === "paid" && st?.address_released ? st.address : null,
@@ -233,13 +248,15 @@ async function admin(req: Request) {
   const id = String(b.id ?? "");
   if (b.op === "hide") await db.from("guests").update({ hidden: !!b.value }).eq("id", id);
   if (b.op === "checkin") await db.from("guests").update({ checked_in: !!b.value }).eq("id", id);
+  if (b.op === "approve") await db.from("guests").update({ approval: "approved" }).eq("id", id);
+  if (b.op === "decline") await db.from("guests").update({ approval: "declined" }).eq("id", id).neq("status", "paid");
   if (b.op === "payments") await db.from("settings").update({ payments_open: !!b.value }).eq("id", 1);
   if (b.op === "crews") await db.from("settings").update({ crews: cleanCrews(b.crews) }).eq("id", 1);
   if (b.op === "settings") {
     await db.from("settings").update({ address: String(b.address ?? "").slice(0, 200), address_released: !!b.released }).eq("id", 1);
   }
   const { data: guests } = await db.from("guests")
-    .select("id,name,instagram,school,gender,source,phone,referrer_name,referrer_school,ticket,amount_cents,status,hidden,checked_in,photo_path,show_photo,created_at,paid_at")
+    .select("id,name,instagram,school,team,approval,gender,source,phone,referrer_name,referrer_school,ticket,amount_cents,status,hidden,checked_in,photo_path,show_photo,created_at,paid_at")
     .order("created_at", { ascending: false });
   const { data: settings } = await db.from("settings").select("*").eq("id", 1).single();
   return json({

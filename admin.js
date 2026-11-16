@@ -2,7 +2,7 @@
   const $ = (id) => document.getElementById(id);
   let pw = "";
   try { pw = sessionStorage.getItem("adm") || ""; } catch {}
-  let state = null, filter = "all"; // open on everyone, so nobody on the list gets missed
+  let state = null, filter = "review"; // opens on the requests waiting for approval
 
   async function call(body = {}) {
     const res = await fetch(`${window.PARTY.api}?action=admin`, {
@@ -36,8 +36,44 @@
     return [...best.values()];
   }
 
+  const SCHOOLS = [["St. Thomas", "STU"], ["FIU", "FIU"], ["UM", "UM"], ["Other", "Other"]];
+  function cell(n, of) { const td = document.createElement("td"); td.textContent = n; if (of) { const s = document.createElement("small"); s.textContent = ` ${Math.round((n / of) * 100)}%`; td.append(s); } return td; }
+  function renderMix(approved, review) {
+    // the main metric: school × gender among approved guests (goal: close to 50/50)
+    const t = document.createElement("table");
+    const head = document.createElement("tr");
+    ["School", "Women", "Men", "Total"].forEach((h) => { const th = document.createElement("th"); th.textContent = h; head.append(th); });
+    t.append(head);
+    const count = (list, school, gender) => list.filter((g) => (!school || g.school === school) && (!gender || g.gender === gender)).length;
+    for (const [school, label] of SCHOOLS) {
+      const tot = count(approved, school);
+      if (!tot && school !== "St. Thomas" && school !== "FIU") continue;
+      const tr = document.createElement("tr");
+      const th = document.createElement("td"); th.textContent = label; tr.append(th);
+      tr.append(cell(count(approved, school, "female")), cell(count(approved, school, "male")), cell(tot, approved.length));
+      t.append(tr);
+    }
+    const tr = document.createElement("tr"); tr.className = "total";
+    const th = document.createElement("td"); th.textContent = "Total"; tr.append(th);
+    tr.append(cell(count(approved, null, "female"), approved.length), cell(count(approved, null, "male"), approved.length), cell(approved.length));
+    t.append(tr);
+    const h = document.createElement("h3"); h.textContent = "Mix of approved guests — goal: close to 50/50";
+    const note = document.createElement("p"); note.className = "fine";
+    note.textContent = review.length ? `+ ${review.length} waiting for approval (${count(review, null, "female")} women · ${count(review, null, "male")} men)` : "No requests waiting.";
+    $("mix").replaceChildren(h, t, note);
+    // teams
+    const teams = {};
+    approved.forEach((g) => { const k = g.team || "No team yet"; teams[k] = (teams[k] || 0) + 1; });
+    const ul = document.createElement("ul");
+    Object.entries(teams).sort((a, b) => b[1] - a[1]).forEach(([k, n]) => { const li = document.createElement("li"); li.append(k + " "); const b = document.createElement("b"); b.textContent = n; li.append(b); ul.append(li); });
+    const ht = document.createElement("h3"); ht.textContent = "Teams (approved)";
+    $("teams").replaceChildren(ht, ul);
+  }
+
   function render() {
-    const all = people();
+    const everyone = people();
+    const all = everyone.filter((g) => g.approval === "approved"); // stats count approved guests
+    const review = everyone.filter((g) => g.approval === "pending");
     const paid = all.filter((g) => g.status === "paid");
     const waiting = all.filter((g) => g.status !== "paid");
     const ladies = paid.filter((g) => g.ticket === "ladies").length;
@@ -47,8 +83,10 @@
     const women = all.filter((g) => g.gender === "female").length, men = all.filter((g) => g.gender === "male").length;
     const unknown = all.length - women - men;
     const pct = (n) => (all.length ? Math.round((n / all.length) * 100) : 0);
+    renderMix(all, review);
     $("stats").replaceChildren(...[
-      [all.length, "joined the list"],
+      [all.length, "approved on the list"],
+      [review.length, "waiting for approval"],
       [`${women} · ${men}`, `women · men (${pct(women)}% · ${pct(men)}%)${unknown ? ` · ${unknown} unknown` : ""}`],
       [paid.length + " / " + state.capacity, "paid"],
       [`${ladies} · ${paid.length - ladies}`, "paid ladies · guys"],
@@ -60,17 +98,20 @@
     $("paySwitch").classList.toggle("open", open);
     $("payState").textContent = open ? "Payments: OPEN" : "Payments: closed";
     $("payHint").textContent = open ? "People can pay now. Closing it hides payment again (nothing is deleted)."
-      : 'Only "Join the list" is open. Flip this when the house is confirmed.';
+      : 'Only "Request an invite" is open. Flip this when the house is confirmed.';
     $("payToggle").textContent = open ? "Close payments" : "Open payments";
     if (document.activeElement !== $("address")) $("address").value = state.settings.address;
     if (document.activeElement !== $("crewsInput")) $("crewsInput").value = (state.settings.crews || []).join("\n");
     $("released").checked = state.settings.address_released;
 
     const q = $("q").value.trim().toLowerCase().replace(/^@/, "");
-    const n = { all: all.length, pending: waiting.length, paid: paid.length };
+    const declined = everyone.filter((g) => g.approval === "declined");
+    const n = { review: review.length, list: waiting.length, paid: paid.length, declined: declined.length, all: everyone.length };
     document.querySelectorAll("[data-f]").forEach((b) => { b.textContent = `${b.dataset.label} (${n[b.dataset.f]})`; });
-    const rows = all.filter((g) =>
-      (filter === "all" || g.status === filter) &&
+    const inFilter = { review: (g) => g.approval === "pending", list: (g) => g.approval === "approved" && g.status !== "paid",
+      paid: (g) => g.status === "paid", declined: (g) => g.approval === "declined", all: () => true }[filter];
+    const rows = everyone.filter((g) =>
+      inFilter(g) &&
       (!q || g.name.toLowerCase().includes(q) || (g.instagram || "").includes(q) || (g.phone || "").includes(q.replace(/\D/g, "") || "~")));
     $("list").replaceChildren(...rows.map(row));
     if (!rows.length) { const p = document.createElement("p"); p.className = "fine"; p.textContent = "Nobody here yet."; $("list").append(p); }
@@ -78,7 +119,7 @@
 
   function row(g) {
     const el = document.createElement("div");
-    el.className = "g " + g.status;
+    el.className = "g " + g.status + (g.approval === "declined" ? " declined" : "");
     const face = document.createElement("div"); face.className = "face";
     if (g.photo) { const i = document.createElement("img"); i.src = g.photo; i.alt = ""; face.append(i); }
     else face.textContent = g.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
@@ -87,11 +128,17 @@
     const b = document.createElement("b"); b.textContent = g.name;
     const sm = document.createElement("small");
     const sex = g.gender === "female" ? "Female" : g.gender === "male" ? "Male" : "";
-    sm.textContent = `${g.instagram ? "@" + g.instagram : "no @"} · ${g.school}${sex ? " · " + sex : ""} · ${g.ticket === "ladies" ? "Ladies $20" : "Guys $40"}${g.phone ? " · " + g.phone : ""}${g.referrer_name ? ` · invited by ${g.referrer_name} (${g.referrer_school})` : ""}${g.status === "paid" && !g.show_photo ? " · mystery on wall" : ""}`;
-    const tag = document.createElement("span"); tag.className = "tag " + g.status; tag.textContent = g.status === "paid" ? "paid" : "on the list · not paid";
+    sm.textContent = `${g.instagram ? "@" + g.instagram : "no @"} · ${g.school}${g.team ? " · " + g.team : ""}${sex ? " · " + sex : ""}${g.phone ? " · " + g.phone : ""}${g.referrer_name ? ` · invited by ${g.referrer_name} (${g.referrer_school})` : ""}${g.status === "paid" && !g.show_photo ? " · mystery on wall" : ""}`;
+    const tag = document.createElement("span");
+    if (g.status === "paid") { tag.className = "tag paid"; tag.textContent = `paid $${g.amount_cents / 100}`; }
+    else if (g.approval === "pending") { tag.className = "tag review"; tag.textContent = "waiting for approval"; }
+    else if (g.approval === "declined") { tag.className = "tag declined"; tag.textContent = "declined"; }
+    else { tag.className = "tag"; tag.textContent = "approved · not paid"; }
     who.append(b, " ", tag, sm);
 
     const acts = document.createElement("div"); acts.className = "acts";
+    if (g.status !== "paid" && g.approval !== "approved") { const a = btn("Approve", false, () => load({ op: "approve", id: g.id })); a.classList.add("ok"); acts.append(a); }
+    if (g.status !== "paid" && g.approval !== "declined") { const d = btn("Decline", false, () => load({ op: "decline", id: g.id })); d.classList.add("no"); acts.append(d); }
     if (g.status === "paid") {
       acts.append(btn(g.checked_in ? "✓ Inside" : "Check in", g.checked_in, () => load({ op: "checkin", id: g.id, value: !g.checked_in })));
       acts.append(btn(g.hidden ? "Shown as ?" : "Show as ? on wall", g.hidden, () => load({ op: "hide", id: g.id, value: !g.hidden })));
@@ -127,7 +174,7 @@
     if (confirm(msg)) load({ op: "payments", value: open });
   });
   $("copyPhones").addEventListener("click", async () => {
-    const phones = [...new Set(state.guests.filter((g) => g.status !== "paid" && g.phone).map((g) => g.phone))];
+    const phones = [...new Set(state.guests.filter((g) => g.status !== "paid" && g.approval === "approved" && g.phone).map((g) => g.phone))];
     try { await navigator.clipboard.writeText(phones.join("\n")); $("copyMsg").textContent = `${phones.length} numbers copied ✓`; }
     catch { prompt("Copy these numbers:", phones.join(", ")); }
   });
