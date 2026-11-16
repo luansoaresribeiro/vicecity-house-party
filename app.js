@@ -237,6 +237,35 @@
     }
   }
 
+  // ---------- date vote (the date isn't fixed yet; options come from /admin) ----------
+  let voter = null, myVote = null;
+  try {
+    voter = localStorage.getItem("afterdark-voter");
+    if (!voter) { voter = "v-" + crypto.randomUUID(); localStorage.setItem("afterdark-voter", voter); }
+    myVote = localStorage.getItem("afterdark-vote");
+  } catch { voter = voter || "v-" + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  let dateOptions = [];
+  function renderVote(options) {
+    if (JSON.stringify(options) === JSON.stringify(dateOptions)) return;
+    dateOptions = options || [];
+    $("voteBtn").hidden = dateOptions.length < 2;
+    if (dateOptions.length < 2) $("voteBox").hidden = true;
+    $("voteOptions").replaceChildren(...dateOptions.map((o) => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = o;
+      b.classList.toggle("on", o === myVote);
+      b.onclick = () => castVote(o); return b;
+    }));
+  }
+  async function castVote(option) {
+    try {
+      await api("vote", { voter, option });
+      myVote = option; try { localStorage.setItem("afterdark-vote", option); } catch {}
+      document.querySelectorAll("#voteOptions button").forEach((b) => b.classList.toggle("on", b.textContent === option));
+      $("voteMsg").textContent = `Thanks! You picked ${option} — you can change it anytime.`;
+    } catch (err) { $("voteMsg").textContent = err.message; }
+  }
+  $("voteBtn").addEventListener("click", () => { $("voteBox").hidden = !$("voteBox").hidden; });
+
   // ---------- data ----------
   async function loadWall() {
     if (PREVIEW) {
@@ -247,7 +276,7 @@
     try {
       const d = await api("wall");
       applyMode(d.paymentsOpen);
-      lastGuests = d.guests; renderWall(tailor(d.guests)); renderCounts(d); renderCrews(d.crews);
+      lastGuests = d.guests; renderWall(tailor(d.guests)); renderCounts(d); renderCrews(d.crews); renderVote(d.dateOptions);
     } catch { /* keep last state */ }
   }
 

@@ -34,6 +34,13 @@
   .pay-switch.open b{color:#5ff2b0}
   .tag{font-size:13px;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid var(--muted)}
   .tag.paid{border-color:#5ff2b0;color:#5ff2b0}
+  .dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:7px;vertical-align:middle;box-shadow:0 0 6px currentColor}
+  .dot.stu{background:#22c55e;color:#22c55e}
+  .dot.fiu{background:#3b82f6;color:#3b82f6}
+  .dot.other{background:#f59e0b;color:#f59e0b}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:0 0 10px}
+  .bar{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin:6px 0;font-size:17px}
+  .bar i{display:block;height:8px;border-radius:99px;background:var(--pink);grid-column:1/-1}
   .tag.review{border-color:#f3d27a;color:#f3d27a}
   .tag.declined{border-color:#ff8a8a;color:#ff8a8a}
   .g.declined{opacity:.45}
@@ -90,6 +97,14 @@
       <button class="btn" type="submit" id="saveAddr">Save address</button>
     </form>
 
+    <form id="dateForm" class="card" style="display:grid;gap:12px;margin:0 0 20px">
+      <label style="letter-spacing:.25em;text-transform:uppercase;font-size:13px;color:var(--pink-soft);display:grid;gap:6px">Date vote — options (one per line, 2 or more)
+        <textarea id="datesInput" rows="3" maxlength="500" placeholder="Fri, Nov 20&#10;Sat, Nov 21" style="width:100%;font:500 18px 'Barlow Condensed';color:var(--cream);background:rgba(255,255,255,.06);border:1px solid rgba(247,239,227,.25);border-radius:10px;padding:12px 14px"></textarea>
+      </label>
+      <div id="dateResults"></div>
+      <button class="btn" type="submit" id="saveDates">Save date options</button>
+    </form>
+
     <form id="crewForm" class="card" style="display:grid;gap:12px;margin:0 0 20px">
       <label style="letter-spacing:.25em;text-transform:uppercase;font-size:13px;color:var(--pink-soft);display:grid;gap:6px">Crews pulling up (shown on the site)
         <textarea id="crewsInput" rows="5" maxlength="1600" placeholder="One per line — only groups that really confirmed&#10;FIU Brasa&#10;STU Volleyball" style="width:100%;font:500 18px 'Barlow Condensed';color:var(--cream);background:rgba(255,255,255,.06);border:1px solid rgba(247,239,227,.25);border-radius:10px;padding:12px 14px"></textarea>
@@ -97,6 +112,7 @@
       <button class="btn" type="submit" id="saveCrews">Save crews</button>
     </form>
 
+    <div class="legend"><span><i class="dot stu"></i>St. Thomas</span><span><i class="dot fiu"></i>FIU</span><span><i class="dot other"></i>Other (invited)</span></div>
     <div class="row filters" style="margin-bottom:12px">
       <input type="search" id="q" placeholder="Search name, @ or phone">
       <button class="mini on" data-f="review" data-label="Waiting for approval">Waiting for approval</button>

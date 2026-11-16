@@ -37,6 +37,8 @@
   }
 
   const SCHOOLS = [["St. Thomas", "STU"], ["FIU", "FIU"], ["UM", "UM"], ["Other", "Other"]];
+  // colored dot per school: STU green · FIU blue · everyone else (invited / Other) amber
+  function dot(school) { const i = document.createElement("i"); i.className = "dot " + (school === "St. Thomas" ? "stu" : school === "FIU" ? "fiu" : "other"); return i; }
   function cell(n, of) { const td = document.createElement("td"); td.textContent = n; if (of) { const s = document.createElement("small"); s.textContent = ` ${Math.round((n / of) * 100)}%`; td.append(s); } return td; }
   function renderMix(approved, review) {
     // the main metric: school × gender among approved guests (goal: close to 50/50)
@@ -49,7 +51,7 @@
       const tot = count(approved, school);
       if (!tot && school !== "St. Thomas" && school !== "FIU") continue;
       const tr = document.createElement("tr");
-      const th = document.createElement("td"); th.textContent = label; tr.append(th);
+      const th = document.createElement("td"); th.append(dot(school), label); tr.append(th);
       tr.append(cell(count(approved, school, "female")), cell(count(approved, school, "male")), cell(tot, approved.length));
       t.append(tr);
     }
@@ -101,6 +103,15 @@
       : 'Only "Request an invite" is open. Flip this when the house is confirmed.';
     $("payToggle").textContent = open ? "Close payments" : "Open payments";
     if (document.activeElement !== $("address")) $("address").value = state.settings.address;
+    if (document.activeElement !== $("datesInput")) $("datesInput").value = (state.settings.date_options || []).join("\n");
+    const votes = state.dateVotes || {}, totalVotes = Object.values(votes).reduce((a, b) => a + b, 0);
+    $("dateResults").replaceChildren(...(state.settings.date_options || []).map((o) => {
+      const n = votes[o] || 0, row = document.createElement("div"); row.className = "bar";
+      const l = document.createElement("span"); l.textContent = o;
+      const c = document.createElement("b"); c.textContent = `${n} vote${n === 1 ? "" : "s"}${totalVotes ? ` · ${Math.round((n / totalVotes) * 100)}%` : ""}`;
+      const i = document.createElement("i"); i.style.width = (totalVotes ? Math.max(2, (n / totalVotes) * 100) : 2) + "%";
+      row.append(l, c, i); return row;
+    }));
     if (document.activeElement !== $("crewsInput")) $("crewsInput").value = (state.settings.crews || []).join("\n");
     $("released").checked = state.settings.address_released;
 
@@ -125,7 +136,7 @@
     else face.textContent = g.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
     const who = document.createElement("div"); who.className = "who";
-    const b = document.createElement("b"); b.textContent = g.name;
+    const b = document.createElement("b"); b.append(dot(g.school), g.name);
     const sm = document.createElement("small");
     const sex = g.gender === "female" ? "Female" : g.gender === "male" ? "Male" : "";
     sm.textContent = `${g.instagram ? "@" + g.instagram : "no @"} · ${g.school}${g.team ? " · " + g.team : ""}${sex ? " · " + sex : ""}${g.phone ? " · " + g.phone : ""}${g.referrer_name ? ` · invited by ${g.referrer_name} (${g.referrer_school})` : ""}${g.status === "paid" && !g.show_photo ? " · mystery on wall" : ""}`;
@@ -178,6 +189,12 @@
     try { await navigator.clipboard.writeText(phones.join("\n")); $("copyMsg").textContent = `${phones.length} numbers copied ✓`; }
     catch { prompt("Copy these numbers:", phones.join(", ")); }
   });
+  $("dateForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("saveDates").textContent = "Saving…";
+    await load({ op: "dates", options: $("datesInput").value.split("\n").map((x) => x.trim()).filter(Boolean) });
+    $("saveDates").textContent = "Saved ✓"; setTimeout(() => ($("saveDates").textContent = "Save date options"), 1500);
+  });
   $("crewForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     $("saveCrews").textContent = "Saving…";
@@ -190,5 +207,5 @@
   }));
 
   if (pw) load();
-  setInterval(() => { if (pw && !$("panel").hidden && document.activeElement !== $("address") && document.activeElement !== $("crewsInput")) load(); }, 30000);
+  setInterval(() => { if (pw && !$("panel").hidden && document.activeElement !== $("address") && document.activeElement !== $("crewsInput") && document.activeElement !== $("datesInput")) load(); }, 30000);
 })();

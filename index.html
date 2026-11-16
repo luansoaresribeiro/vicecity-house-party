@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Vice City — After Dark</title>
-<meta name="description" content="College House Party · Friday, Nov 20 · 8PM–4AM · Dress code: Miami Vice. Grab your ticket and get on the guest wall.">
+<meta name="description" content="College House Party · Open Bar · Coming up · Dress code: Miami Vice. Invite only — request yours and get on the guest wall.">
 <meta property="og:title" content="Vice City — After Dark">
-<meta property="og:description" content="Friday, Nov 20 · 8PM–4AM · Ladies $20 · Guys $40 · Address revealed after RSVP">
+<meta property="og:description" content="Frat House Party · Open Bar · Invite only · STU × FIU · Coming up 👀">
 <meta property="og:image" content="/assets/og.jpg">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
@@ -49,7 +49,7 @@
       <span class="seal-bot">Students only</span>
     </div>
     <figure class="flyer">
-      <img src="/assets/flyer.webp" alt="Vice City — After Dark flyer. Friday, Nov 20th. Address TBA. Dress code: Miami Vice." width="1024" height="1536">
+      <img src="/assets/flyer.webp" alt="Vice City — After Dark flyer. College house party. Address TBA. Dress code: Miami Vice." width="1024" height="1536">
     </figure>
     </div>
 
@@ -59,10 +59,15 @@
         <p class="open-bar">Open Bar</p>
       </div>
       <dl class="facts">
-        <div><span class="ic" aria-hidden="true">🕗</span><dt>When</dt><dd>Friday, Nov 20 · 8PM – 4AM</dd></div>
-        <div><span class="ic" aria-hidden="true">📍</span><dt>Where</dt><dd>Miami · <strong>address revealed after RSVP</strong></dd></div>
+        <div><span class="ic" aria-hidden="true">🕗</span><dt>When</dt><dd>Coming up 👀 <button type="button" class="vote-link" id="voteBtn" hidden>Vote for the best date</button></dd></div>
+        <div><span class="ic" aria-hidden="true">📍</span><dt>Where</dt><dd>Miami · <strong>revealed one day before the party</strong> — check back here</dd></div>
         <div><span class="ic" aria-hidden="true">🌴</span><dt>Dress code</dt><dd>Miami Vice — linen · sundresses · button ups · colors</dd></div>
       </dl>
+      <div class="vote-box" id="voteBox" hidden>
+        <p class="vote-q">Which date works best for you?</p>
+        <div class="vote-options" id="voteOptions"></div>
+        <p class="fine" id="voteMsg" aria-live="polite"></p>
+      </div>
 
       <div class="counter" id="counter" aria-live="polite">
         <div><b id="spotsLeft">Few</b><span>spots left</span></div>

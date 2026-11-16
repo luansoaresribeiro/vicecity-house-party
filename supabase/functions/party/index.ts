@@ -29,6 +29,8 @@ function normalizePhone(raw: string): string | null {
   if (plus && d.length >= 8 && d.length <= 15) return "+" + d;
   return null;
 }
+const cleanOptions = (v: unknown) =>
+  (Array.isArray(v) ? v : []).map((x) => String(x).trim().slice(0, 60)).filter(Boolean).slice(0, 8);
 const cleanCrews = (v: unknown) =>
   (Array.isArray(v) ? v : []).map((x) => String(x).trim().slice(0, 40)).filter(Boolean).slice(0, 40);
 
@@ -96,11 +98,23 @@ async function wall() {
     if (fromForms) return { id: g.id, instagram: null, name, photo: null, gender: g.gender };
     return { id: g.id, instagram: g.instagram, name, photo: photoUrl(g.photo_path), gender: g.gender };
   });
-  const { data: st } = await db.from("settings").select("crews").eq("id", 1).single();
+  const { data: st } = await db.from("settings").select("crews,date_options").eq("id", 1).single();
   // people on the list (each @ once, paid or not) — drives "spots left" during the list phase
   const { data: handles } = await db.from("guests").select("id,instagram").eq("approval", "approved");
   const listed = new Set((handles ?? []).map((h) => h.instagram ?? h.id)).size;
-  return json({ guests, listed, crews: cleanCrews(st?.crews), paymentsOpen: open, ...(await counts()), capacity: CAPACITY });
+  return json({ guests, listed, crews: cleanCrews(st?.crews), dateOptions: cleanOptions(st?.date_options), paymentsOpen: open, ...(await counts()), capacity: CAPACITY });
+}
+
+// ---------- public: vote for the best date (one vote per device, can be changed) ----------
+async function vote(req: Request) {
+  const b = await req.json().catch(() => ({}));
+  const voter = String(b.voter ?? ""), option = String(b.option ?? "");
+  if (!/^[a-z0-9-]{8,64}$/i.test(voter)) return fail("Couldn't save your vote.");
+  const { data: st } = await db.from("settings").select("date_options").eq("id", 1).single();
+  if (!cleanOptions(st?.date_options).includes(option)) return fail("That date isn't an option anymore — refresh the page.");
+  const { error } = await db.from("date_votes").upsert({ voter, option, updated_at: new Date().toISOString() });
+  if (error) return fail("Couldn't save your vote.", 500);
+  return json({ ok: true });
 }
 
 const closedMsg = `Online sales are closed. Text or call ${PHONE} to request a ticket.`;
@@ -251,6 +265,7 @@ async function admin(req: Request) {
   if (b.op === "approve") await db.from("guests").update({ approval: "approved" }).eq("id", id);
   if (b.op === "decline") await db.from("guests").update({ approval: "declined" }).eq("id", id).neq("status", "paid");
   if (b.op === "payments") await db.from("settings").update({ payments_open: !!b.value }).eq("id", 1);
+  if (b.op === "dates") await db.from("settings").update({ date_options: cleanOptions(b.options) }).eq("id", 1);
   if (b.op === "crews") await db.from("settings").update({ crews: cleanCrews(b.crews) }).eq("id", 1);
   if (b.op === "settings") {
     await db.from("settings").update({ address: String(b.address ?? "").slice(0, 200), address_released: !!b.released }).eq("id", 1);
@@ -259,9 +274,12 @@ async function admin(req: Request) {
     .select("id,name,instagram,school,team,approval,gender,source,phone,referrer_name,referrer_school,ticket,amount_cents,status,hidden,checked_in,photo_path,show_photo,created_at,paid_at")
     .order("created_at", { ascending: false });
   const { data: settings } = await db.from("settings").select("*").eq("id", 1).single();
+  const { data: votes } = await db.from("date_votes").select("option");
+  const dateVotes: Record<string, number> = {};
+  (votes ?? []).forEach((v) => { dateVotes[v.option] = (dateVotes[v.option] ?? 0) + 1; });
   return json({
     guests: (guests ?? []).map((g) => ({ ...g, photo: photoUrl(g.photo_path) })),
-    settings, capacity: CAPACITY, holdSince: holdSince(),
+    settings, dateVotes, capacity: CAPACITY, holdSince: holdSince(),
   });
 }
 
@@ -273,6 +291,7 @@ Deno.serve(async (req) => {
     if (action === "wall" && req.method === "GET") return await wall();
     if (action === "apply" && req.method === "POST") return await apply(req);
     if (action === "pay" && req.method === "POST") return await pay(req);
+    if (action === "vote" && req.method === "POST") return await vote(req);
     if (action === "ticket" && req.method === "GET") return await ticketPage(url);
     if (action === "webhook" && req.method === "POST") return await webhook(req);
     if (action === "admin" && req.method === "POST") return await admin(req);
